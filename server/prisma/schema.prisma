@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id         Int      @id @default(autoincrement())
+  shortCode  String   @unique
+  accessCode String
+  name       String
+  type       String?
+  createdAt  DateTime @default(now())
+  scans      Scan[]
+}
+
+model Scan {
+  id        Int      @id @default(autoincrement())
+  ean       String
+  quantity  Int      @default(1)
+  scannedAt DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [id])
+  sessionId Int
+}
