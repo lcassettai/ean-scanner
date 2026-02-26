@@ -1,1 +1,0 @@
-{"version":3,"file":"create-session.dto.js","sourceRoot":"","sources":["../../../src/sessions/dto/create-session.dto.ts"],"names":[],"mappings":";;;AAAA,MAAa,WAAW;IACtB,GAAG,CAAS;IACZ,QAAQ,CAAS;CAClB;AAHD,kCAGC;AAED,MAAa,gBAAgB;IAC3B,IAAI,CAAS;IACb,IAAI,CAAU;IACd,KAAK,CAAgB;CACtB;AAJD,4CAIC;AAED,MAAa,WAAW;IACtB,KAAK,CAAgB;CACtB;AAFD,kCAEC"}
