@@ -15,7 +15,7 @@ interface Props {
 
 const reader = new MultiFormatReader();
 reader.setHints(
-  new Map([
+  new Map<DecodeHintType, BarcodeFormat[] | boolean>([
     [
       DecodeHintType.POSSIBLE_FORMATS,
       [

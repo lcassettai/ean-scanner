@@ -8,7 +8,8 @@
       "Bash(npm create:*)",
       "Bash(echo:*)",
       "Bash(curl:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
