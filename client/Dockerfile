@@ -16,6 +16,8 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 COPY nginx.conf.template /etc/nginx/nginx.conf.template
+COPY startup.sh /startup.sh
+RUN chmod +x /startup.sh
 
 # Railway sets PORT dynamically; default to 80 for local testing
 ENV PORT=80
@@ -23,5 +25,4 @@ ENV BACKEND_URL=http://localhost:3001
 
 EXPOSE 80
 
-# Substitute only ${PORT} and ${BACKEND_URL}, leaving nginx's own $variables intact
-CMD ["/bin/sh", "-c", "envsubst '${PORT} ${BACKEND_URL}' < /etc/nginx/nginx.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+CMD ["/startup.sh"]
