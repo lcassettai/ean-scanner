@@ -12,8 +12,20 @@ esac
 
 export PORT BACKEND_URL
 
+# nginx:alpine >= 1.21 uses http.d/, older versions use conf.d/
+if [ -d /etc/nginx/http.d ]; then
+  NGINX_CONF=/etc/nginx/http.d/default.conf
+else
+  NGINX_CONF=/etc/nginx/conf.d/default.conf
+fi
+
 envsubst '${PORT} ${BACKEND_URL}' \
   < /etc/nginx/nginx.conf.template \
-  > /etc/nginx/conf.d/default.conf
+  > "$NGINX_CONF"
+
+echo "=== nginx config ($NGINX_CONF) ==="
+cat "$NGINX_CONF"
+echo "=== files in /usr/share/nginx/html ==="
+ls -la /usr/share/nginx/html
 
 exec nginx -g 'daemon off;'
