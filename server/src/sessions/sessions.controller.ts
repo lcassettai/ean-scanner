@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -22,6 +23,11 @@ export class SessionsController {
   @Post(':code/scans')
   addScans(@Param('code') code: string, @Body() dto: AddScansDto) {
     return this.sessionsService.addScans(code, dto);
+  }
+
+  @Delete(':code/scans')
+  deleteScans(@Param('code') code: string, @Body() body: { eans: string[] }) {
+    return this.sessionsService.deleteScans(code, body.eans);
   }
 
   @Get(':code')

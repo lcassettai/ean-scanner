@@ -108,6 +108,15 @@ export class SessionsService {
     return stringify(rows, { header: true });
   }
 
+  async deleteScans(code: string, eans: string[]) {
+    const session = await this.prisma.session.findUnique({ where: { shortCode: code } });
+    if (!session) throw new NotFoundException('Session not found');
+    await this.prisma.scan.deleteMany({
+      where: { sessionId: session.id, ean: { in: eans } },
+    });
+    return { ok: true };
+  }
+
   async verifyAccess(code: string, accessCode: string) {
     const session = await this.prisma.session.findUnique({
       where: { shortCode: code },

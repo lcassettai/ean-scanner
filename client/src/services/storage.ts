@@ -68,9 +68,10 @@ export function deleteHistoryEntry(id: string): void {
 export function getSessionState(): SessionState {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return { session: null, pendingScans: [], allScans: [] };
+    if (!raw) return { session: null, pendingScans: [], allScans: [], pendingDeletes: [] };
     const parsed = JSON.parse(raw) as SessionState;
     if (!parsed.allScans) parsed.allScans = [...parsed.pendingScans];
+    if (!parsed.pendingDeletes) parsed.pendingDeletes = [];
     // Verificar expiración
     if (parsed.session && isExpired(parsed.session.createdAt)) {
       localStorage.removeItem(SESSION_KEY);
@@ -106,6 +107,7 @@ export function startSession(
     },
     pendingScans: [],
     allScans: [],
+    pendingDeletes: [],
   };
   saveSessionState(state);
 }
@@ -135,6 +137,10 @@ export function addScan(ean: string): boolean {
 
 export function removeScan(ean: string): void {
   const state = getSessionState();
+  // Si ya fue sincronizado, rastrear la eliminación para propagarla al servidor
+  if (state.session?.shortCode && !state.pendingDeletes.includes(ean)) {
+    state.pendingDeletes.push(ean);
+  }
   state.pendingScans = state.pendingScans.filter((s) => s.ean !== ean);
   state.allScans = state.allScans.filter((s) => s.ean !== ean);
   saveSessionState(state);
@@ -186,6 +192,7 @@ export function updateSessionCodes(meta: Partial<SessionMeta>): void {
 export function clearPendingScans(): void {
   const state = getSessionState();
   state.pendingScans = [];
+  state.pendingDeletes = [];
   saveSessionState(state);
 }
 

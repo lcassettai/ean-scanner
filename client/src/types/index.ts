@@ -22,6 +22,7 @@ export interface SessionState {
   session: SessionMeta | null;
   pendingScans: ScanItem[];
   allScans: ScanItem[];
+  pendingDeletes: string[]; // EANs eliminados que el servidor aún no sabe
 }
 
 export interface HistoryEntry {

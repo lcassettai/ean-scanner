@@ -13,7 +13,7 @@ import {
   clearSession,
   deleteHistoryEntry,
 } from '../services/storage';
-import { createSession, addScans } from '../services/api';
+import { createSession, addScans, deleteScans } from '../services/api';
 import type { ScanItem, SessionState } from '../types';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -129,7 +129,7 @@ export default function Scanner() {
 
   const handleSync = async () => {
     const current = getSessionState();
-    if (!current.session || current.pendingScans.length === 0) return;
+    if (!current.session || (current.pendingScans.length === 0 && current.pendingDeletes.length === 0)) return;
 
     setSyncing(true);
     setSyncError(null);
@@ -155,7 +155,12 @@ export default function Scanner() {
         refresh();
         setShowResult(true);
       } else {
-        await addScans(current.session.shortCode, current.pendingScans);
+        if (current.pendingDeletes.length > 0) {
+          await deleteScans(current.session.shortCode, current.pendingDeletes);
+        }
+        if (current.pendingScans.length > 0) {
+          await addScans(current.session.shortCode, current.pendingScans);
+        }
         clearPendingScans();
         refresh();
         setToastMessage('Datos sincronizados');
@@ -227,7 +232,7 @@ export default function Scanner() {
     );
   };
 
-  const { session, pendingScans } = state;
+  const { session, pendingScans, pendingDeletes = [] } = state;
   if (!session) return null;
 
   // ────────── Modal resultado ──────────
@@ -326,6 +331,32 @@ export default function Scanner() {
             <button onClick={handleSaveSettings} className="btn-primary w-full text-sm py-2.5">
               Guardar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal error de sincronización */}
+      {syncError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50">
+          <div className="card p-6 w-full max-w-sm">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="font-bold text-gray-900 text-base text-center mb-2">Error al sincronizar</h3>
+            <p className="text-sm text-gray-500 text-center mb-5">{syncError}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setSyncError(null)} className="btn-outline flex-1 text-sm py-2.5">
+                Cerrar
+              </button>
+              <button
+                onClick={() => { setSyncError(null); handleSync(); }}
+                className="btn-primary flex-1 text-sm py-2.5"
+              >
+                Reintentar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -493,21 +524,17 @@ export default function Scanner() {
         </button>
       </div>
 
-      {/* Error de sync */}
-      {syncError && (
-        <div className="mt-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl px-4 py-3">{syncError}</div>
-      )}
 
       {/* Barra de acción */}
       <div className="flex items-center justify-between mt-4 mb-3">
         <span className="text-sm text-gray-500 font-medium">
-          {pendingScans.length === 0
+          {pendingScans.length === 0 && pendingDeletes.length === 0
             ? session.shortCode ? 'Todo sincronizado' : 'Sin escaneos aún'
-            : `${pendingScans.length} ítem${pendingScans.length !== 1 ? 's' : ''} sin sincronizar`}
+            : `${pendingScans.length + pendingDeletes.length} cambio${pendingScans.length + pendingDeletes.length !== 1 ? 's' : ''} sin sincronizar`}
         </span>
         <button
           onClick={handleSync}
-          disabled={syncing || pendingScans.length === 0}
+          disabled={syncing || (pendingScans.length === 0 && pendingDeletes.length === 0)}
           className="btn-primary py-2 px-4 text-sm flex items-center gap-2"
         >
           {syncing ? (

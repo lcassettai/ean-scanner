@@ -30,6 +30,15 @@ export async function addScans(
   return res.json();
 }
 
+export async function deleteScans(shortCode: string, eans: string[]): Promise<void> {
+  const res = await fetch(`${BASE}/sessions/${shortCode}/scans`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eans }),
+  });
+  if (!res.ok) throw new Error('Error al eliminar ítems');
+}
+
 export function getCsvUrl(shortCode: string): string {
   return `${BASE}/sessions/${shortCode}/export`;
 }
