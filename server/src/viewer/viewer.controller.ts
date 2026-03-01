@@ -167,15 +167,15 @@ export class ViewerController {
           </svg>
         </button>
       </div>
-      <div class="flex justify-center">
+      <div class="w-full overflow-x-auto flex justify-center">
         <svg id="barcodeImage"></svg>
-        <div id="barcodeError" class="hidden flex flex-col items-center gap-2 py-4 text-center">
-          <svg class="w-10 h-10 text-red-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <p class="text-sm font-medium text-gray-700">Código no válido</p>
-          <p class="text-xs text-gray-400">"<span class="font-mono"></span>" no es un EAN-13 válido</p>
-        </div>
+      </div>
+      <div id="barcodeError" style="display:none" class="flex flex-col items-center gap-2 py-4 text-center w-full">
+        <svg class="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <p class="text-sm font-medium text-gray-700">Código no válido</p>
+        <p class="text-xs text-gray-400">"<span class="font-mono"></span>" no es un EAN-13 válido</p>
       </div>
     </div>
   </div>
@@ -329,7 +329,7 @@ export class ViewerController {
           <td class="px-4 py-3 font-mono text-gray-800">\${s.ean}</td>
           <td class="px-4 py-3 text-gray-600">\${s.internalCode || '—'}</td>
           <td class="px-4 py-3 text-gray-600">\${s.productName || '—'}</td>
-          <td class="px-4 py-3 text-right text-gray-600">\${s.price != null ? s.price.toFixed(2) : '—'}</td>
+          <td class="px-4 py-3 text-right text-gray-600">€\${s.price != null ? s.price.toFixed(2) : '—'}</td>
           <td class="px-4 py-3 text-center font-semibold text-primary-700">\${s.quantity}</td>
           <td class="px-4 py-3 text-gray-600 max-w-xs">\${s.observations || '—'}</td>
           <td class="px-4 py-3 text-center">
@@ -352,12 +352,12 @@ export class ViewerController {
       const svg = document.getElementById('barcodeImage');
       const errorEl = document.getElementById('barcodeError');
       svg.innerHTML = '';
-      errorEl.classList.add('hidden');
+      errorEl.style.display = 'none';
       try {
         JsBarcode(svg, ean, { format: 'EAN13', displayValue: true, fontSize: 14, margin: 10, width: 2, height: 80 });
       } catch {
         errorEl.querySelector('span').textContent = ean;
-        errorEl.classList.remove('hidden');
+        errorEl.style.display = 'flex';
       }
       document.getElementById('barcodeModal').classList.remove('hidden');
     }

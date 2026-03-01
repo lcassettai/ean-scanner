@@ -567,7 +567,6 @@ export default function Scanner() {
                     value={modalFields.quantity}
                     onChange={(e) => setModalFields((f) => ({ ...f, quantity: e.target.value }))}
                     className="input-field py-2 text-sm"
-                    autoFocus
                   />
                 </div>
               )}
@@ -581,7 +580,6 @@ export default function Scanner() {
                     onChange={(e) => setModalFields((f) => ({ ...f, internalCode: e.target.value }))}
                     placeholder="Ej: INT-001"
                     className="input-field py-2 text-sm"
-                    autoFocus={!scanModal.showAll && !session.askQuantity}
                   />
                 </div>
               )}
@@ -593,7 +591,7 @@ export default function Scanner() {
                     type="text"
                     value={modalFields.productName}
                     onChange={(e) => setModalFields((f) => ({ ...f, productName: e.target.value }))}
-                    placeholder="Ej: Leche entera 1L"
+                    placeholder="Ej: Pienso NATH 12kg"
                     className="input-field py-2 text-sm"
                   />
                 </div>
@@ -748,7 +746,7 @@ export default function Scanner() {
                       <p className="font-mono text-sm text-gray-800 truncate">{item.ean}</p>
                       {(item.internalCode || item.productName || item.price != null) && (
                         <p className="text-xs text-gray-400 truncate">
-                          {[item.internalCode, item.productName, item.price != null ? `$${item.price}` : null]
+                          {[item.internalCode, item.productName, item.price != null ? `€${item.price}` : null]
                             .filter(Boolean).join(' · ')}
                         </p>
                       )}
