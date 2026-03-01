@@ -18,6 +18,7 @@ export class SessionsService {
         accessCode,
         name: dto.name,
         type: dto.type ?? null,
+        askQuantity: dto.askQuantity ?? false,
         askInternalCode: dto.askInternalCode ?? false,
         askProductName: dto.askProductName ?? false,
         askPrice: dto.askPrice ?? false,
@@ -33,6 +34,7 @@ export class SessionsService {
       accessCode: session.accessCode,
       name: session.name,
       type: session.type,
+      askQuantity: session.askQuantity,
       askInternalCode: session.askInternalCode,
       askProductName: session.askProductName,
       askPrice: session.askPrice,
@@ -60,6 +62,7 @@ export class SessionsService {
             internalCode: item.internalCode ?? existing.internalCode,
             productName:  item.productName  ?? existing.productName,
             price:        item.price        ?? existing.price,
+            observations: item.observations ?? existing.observations,
           },
         });
       } else {
@@ -70,6 +73,7 @@ export class SessionsService {
             internalCode: item.internalCode,
             productName:  item.productName,
             price:        item.price,
+            observations: item.observations,
             sessionId:    session.id,
           },
         });
@@ -103,6 +107,7 @@ export class SessionsService {
       CodigoInterno:  (s: typeof session.scans[0]) => s.internalCode ?? '',
       NombreProducto: (s: typeof session.scans[0]) => s.productName  ?? '',
       Precio:         (s: typeof session.scans[0]) => s.price        ?? '',
+      Observaciones:  (s: typeof session.scans[0]) => s.observations ?? '',
     };
 
     const fieldMap: Record<string, keyof typeof all> = {
@@ -111,6 +116,7 @@ export class SessionsService {
       internalCode:  'CodigoInterno',
       productName:   'NombreProducto',
       price:         'Precio',
+      observations:  'Observaciones',
     };
 
     const selected: (keyof typeof all)[] = fields && fields.length > 0
@@ -152,9 +158,10 @@ export class SessionsService {
       const existing = map.get(s.ean);
       if (existing) {
         existing.quantity     += s.quantity;
-        existing.internalCode  = s.internalCode ?? existing.internalCode;
-        existing.productName   = s.productName  ?? existing.productName;
-        existing.price         = s.price        ?? existing.price;
+        existing.internalCode  = s.internalCode  ?? existing.internalCode;
+        existing.productName   = s.productName   ?? existing.productName;
+        existing.price         = s.price         ?? existing.price;
+        existing.observations  = s.observations  ?? existing.observations;
       } else {
         map.set(s.ean, { ...s });
       }

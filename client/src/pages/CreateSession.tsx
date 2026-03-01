@@ -36,6 +36,7 @@ export default function CreateSession() {
   const [name, setName] = useState('');
   const [type, setType] = useState('stock');
   const [customType, setCustomType] = useState('');
+  const [askQuantity, setAskQuantity] = useState(false);
   const [askInternalCode, setAskInternalCode] = useState(false);
   const [askProductName, setAskProductName] = useState(false);
   const [askPrice, setAskPrice] = useState(false);
@@ -51,7 +52,7 @@ export default function CreateSession() {
     if (!name.trim()) return;
     if (type === 'other' && !customType.trim()) return;
     const resolvedType = type === 'other' ? customType.trim() : type;
-    startSession(name.trim(), resolvedType, { askInternalCode, askProductName, askPrice });
+    startSession(name.trim(), resolvedType, { askQuantity, askInternalCode, askProductName, askPrice });
     navigate('/scan');
   };
 
@@ -220,6 +221,7 @@ export default function CreateSession() {
             </div>
             <div className="space-y-2">
               {[
+                { key: 'quantity'     as const, label: 'Cantidad', state: askQuantity, setter: setAskQuantity },
                 { key: 'internalCode' as const, label: 'Código interno', state: askInternalCode, setter: setAskInternalCode },
                 { key: 'productName'  as const, label: 'Nombre de producto', state: askProductName, setter: setAskProductName },
                 { key: 'price'        as const, label: 'Precio', state: askPrice, setter: setAskPrice },

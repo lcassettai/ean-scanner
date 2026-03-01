@@ -143,6 +143,7 @@ export class ViewerController {
                 <th class="text-left px-4 py-3">Producto</th>
                 <th class="text-right px-4 py-3">Precio</th>
                 <th class="text-center px-4 py-3">Cantidad</th>
+                <th class="text-left px-4 py-3">Observaciones</th>
               </tr>
             </thead>
             <tbody id="scansTable" class="divide-y divide-gray-50"></tbody>
@@ -185,6 +186,10 @@ export class ViewerController {
         <label class="flex items-center gap-3 cursor-pointer select-none">
           <input type="checkbox" id="csv_price" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
           <span class="text-sm font-medium text-gray-700">Precio</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="csv_observations" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+          <span class="text-sm font-medium text-gray-700">Observaciones</span>
         </label>
       </div>
       <div class="flex gap-3">
@@ -300,6 +305,7 @@ export class ViewerController {
           <td class="px-4 py-3 text-gray-600">\${s.productName || '—'}</td>
           <td class="px-4 py-3 text-right text-gray-600">\${s.price != null ? s.price.toFixed(2) : '—'}</td>
           <td class="px-4 py-3 text-center font-semibold text-primary-700">\${s.quantity}</td>
+          <td class="px-4 py-3 text-gray-600 max-w-xs">\${s.observations || '—'}</td>
         </tr>
       \`).join('');
     }
@@ -321,7 +327,7 @@ export class ViewerController {
     }
 
     function updateCsvBtn() {
-      const fields = ['ean','quantity','internalCode','productName','price']
+      const fields = ['ean','quantity','internalCode','productName','price','observations']
         .filter(f => document.getElementById('csv_' + f).checked);
       const btn = document.getElementById('csvDownloadBtn');
       if (fields.length === 0) {

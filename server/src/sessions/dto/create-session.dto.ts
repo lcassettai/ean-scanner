@@ -4,11 +4,13 @@ export class ScanItemDto {
   internalCode?: string;
   productName?: string;
   price?: number;
+  observations?: string;
 }
 
 export class CreateSessionDto {
   name: string;
   type?: string;
+  askQuantity?: boolean;
   askInternalCode?: boolean;
   askProductName?: boolean;
   askPrice?: boolean;

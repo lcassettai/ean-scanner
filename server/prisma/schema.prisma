@@ -14,6 +14,7 @@ model Session {
   accessCode        String
   name              String
   type              String?
+  askQuantity       Boolean  @default(false)
   askInternalCode   Boolean  @default(false)
   askProductName    Boolean  @default(false)
   askPrice          Boolean  @default(false)
@@ -28,6 +29,7 @@ model Scan {
   internalCode  String?
   productName   String?
   price         Float?
+  observations  String?
   scannedAt     DateTime @default(now())
   session       Session  @relation(fields: [sessionId], references: [id])
   sessionId     Int

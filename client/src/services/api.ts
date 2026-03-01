@@ -6,7 +6,7 @@ export async function createSession(
   name: string,
   type: string,
   scans: ScanItem[],
-  flags?: { askInternalCode?: boolean; askProductName?: boolean; askPrice?: boolean },
+  flags?: { askQuantity?: boolean; askInternalCode?: boolean; askProductName?: boolean; askPrice?: boolean },
 ): Promise<SyncResult> {
   const res = await fetch(`${BASE}/sessions`, {
     method: 'POST',
