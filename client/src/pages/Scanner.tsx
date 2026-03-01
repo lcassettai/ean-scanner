@@ -25,7 +25,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function Scanner() {
   const navigate = useNavigate();
-  const [state, setState] = useState<SessionState>({ session: null, pendingScans: [], allScans: [] });
+  const [state, setState] = useState<SessionState>({ session: null, pendingScans: [], allScans: [], pendingDeletes: [] });
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);

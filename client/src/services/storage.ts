@@ -75,11 +75,11 @@ export function getSessionState(): SessionState {
     // Verificar expiración
     if (parsed.session && isExpired(parsed.session.createdAt)) {
       localStorage.removeItem(SESSION_KEY);
-      return { session: null, pendingScans: [], allScans: [] };
+      return { session: null, pendingScans: [], allScans: [], pendingDeletes: [] };
     }
     return parsed;
   } catch {
-    return { session: null, pendingScans: [], allScans: [] };
+    return { session: null, pendingScans: [], allScans: [], pendingDeletes: [] };
   }
 }
 
@@ -117,6 +117,7 @@ export function resumeSession(entry: HistoryEntry): void {
     session: entry.session,
     pendingScans: entry.pendingScans,
     allScans: entry.allScans,
+    pendingDeletes: [],
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(state));
 }
