@@ -94,7 +94,7 @@ export class SessionsService {
     return session;
   }
 
-  async exportCsv(code: string, fields?: string[]): Promise<string> {
+  async exportCsv(code: string, fields?: string[]): Promise<{ csv: string; sessionName: string }> {
     const session = await this.getSession(code);
 
     const all = {
@@ -123,7 +123,7 @@ export class SessionsService {
       return row;
     });
 
-    return stringify(rows, { header: true });
+    return { csv: stringify(rows, { header: true }), sessionName: session.name };
   }
 
   async deleteScans(code: string, eans: string[]) {

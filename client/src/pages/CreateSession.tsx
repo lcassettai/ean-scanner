@@ -171,7 +171,7 @@ export default function CreateSession() {
                   const hh   = String(now.getHours()).padStart(2, '0');
                   const min  = String(now.getMinutes()).padStart(2, '0');
                   const stamp = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
-                  setName((prev) => (prev.trim() ? `${prev.trim()} ${stamp}` : stamp));
+                  setName((prev) => (prev.trim() ? `${prev.trim()} - ${stamp}` : stamp));
                 }}
                 className="flex-shrink-0 w-10 h-12 flex items-center justify-center rounded-xl border-2 border-primary-200 text-primary-500 hover:border-primary-400 hover:bg-primary-50 transition-all"
                 title="Agregar fecha y hora al nombre"

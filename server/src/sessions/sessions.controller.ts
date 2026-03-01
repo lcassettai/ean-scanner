@@ -43,9 +43,10 @@ export class SessionsController {
     @Res() res: Response,
   ) {
     const selectedFields = fields ? fields.split(',').map((f) => f.trim()) : undefined;
-    const csv = await this.sessionsService.exportCsv(code, selectedFields);
+    const { csv, sessionName } = await this.sessionsService.exportCsv(code, selectedFields);
+    const safeName = sessionName.replace(/[/\\:*?"<>|]/g, '_').trim();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="session-${code}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}.csv`);
     res.send('\uFEFF' + csv); // BOM para Excel
   }
 }
