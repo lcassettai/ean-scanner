@@ -155,6 +155,12 @@ export class ViewerController {
 
   <script>
     const CODE = '${code}';
+    const TYPE_LABELS = {
+      stock:   'Recuento de ítems',
+      missing: 'Etiquetas faltantes',
+      verify:  'Verificar stock',
+      other:   'Otro',
+    };
     let storedAccessCode = null;
     let pollingTimer = null;
 
@@ -228,7 +234,7 @@ export class ViewerController {
       document.getElementById('inventoryScreen').classList.remove('hidden');
 
       document.getElementById('sessionName').textContent = data.name;
-      document.getElementById('sessionType').textContent = data.type || 'General';
+      document.getElementById('sessionType').textContent = TYPE_LABELS[data.type] || data.type || 'General';
       document.getElementById('sessionDate').textContent = new Date(data.createdAt).toLocaleDateString('es-AR', {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
