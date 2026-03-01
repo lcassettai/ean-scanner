@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import JsBarcode from 'jsbarcode';
 import BarcodeScanner from '../components/BarcodeScanner';
 import Toast from '../components/Toast';
 import {
@@ -46,6 +47,8 @@ export default function Scanner() {
   const [csvFields, setCsvFields] = useState({
     ean: false, quantity: false, internalCode: false, productName: false, price: false, observations: false,
   });
+  const [barcodeModal, setBarcodeModal] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const refresh = () => setState(getSessionState());
 
@@ -110,8 +113,14 @@ export default function Scanner() {
   };
 
   const handleRemove = (ean: string) => {
-    removeScan(ean);
+    setDeleteConfirm(ean);
+  };
+
+  const handleConfirmRemove = () => {
+    if (!deleteConfirm) return;
+    removeScan(deleteConfirm);
     refresh();
+    setDeleteConfirm(null);
   };
 
   const handleQtyEdit = (ean: string, current: number) => {
@@ -243,6 +252,43 @@ export default function Scanner() {
   const { session, pendingScans, pendingDeletes = [] } = state;
   if (!session) return null;
 
+  // ────────── Componente display de código de barras ──────────
+  function BarcodeDisplay({ value }: { value: string }) {
+    const svgRef = useRef<SVGSVGElement>(null);
+    const [invalid, setInvalid] = useState(false);
+    useEffect(() => {
+      setInvalid(false);
+      if (svgRef.current) {
+        try {
+          JsBarcode(svgRef.current, value, {
+            format: 'EAN13',
+            displayValue: true,
+            fontSize: 14,
+            margin: 10,
+            width: 2,
+            height: 80,
+          });
+        } catch {
+          setInvalid(true);
+        }
+      }
+    }, [value]);
+    if (invalid) {
+      return (
+        <div className="flex flex-col items-center gap-2 py-4 text-center">
+          <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm font-medium text-gray-700">Código no válido</p>
+          <p className="text-xs text-gray-400">
+            "<span className="font-mono">{value}</span>" no es un EAN-13 válido
+          </p>
+        </div>
+      );
+    }
+    return <svg ref={svgRef} className="max-w-full" />;
+  }
+
   // ────────── Modal CSV (compartido entre pantallas) ──────────
   const csvModal = showCsvModal && lastSync ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50" onClick={() => setShowCsvModal(false)}>
@@ -365,6 +411,49 @@ export default function Scanner() {
   return (
     <div className="min-h-screen flex flex-col max-w-lg mx-auto px-4 py-4">
       <Toast show={showToast} message={toastMessage} />
+
+      {/* Modal confirmación de eliminación */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50">
+          <div className="card p-6 w-full max-w-sm">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="font-bold text-gray-900 text-base text-center mb-2">¿Quitar ítem escaneado?</h3>
+            <p className="text-sm text-gray-500 text-center mb-1">¿Estás seguro que querés quitar el ítem escaneado?</p>
+            <p className="font-mono text-xs text-gray-400 text-center mb-5">{deleteConfirm}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="btn-outline flex-1 text-sm py-2.5">
+                Cancelar
+              </button>
+              <button onClick={handleConfirmRemove} className="btn-danger flex-1 text-sm py-2.5">
+                Quitar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal código de barras */}
+      {barcodeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50" onClick={() => setBarcodeModal(null)}>
+          <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900 text-base">Código de barras</h3>
+              <button onClick={() => setBarcodeModal(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex flex-col items-center">
+              <BarcodeDisplay value={barcodeModal} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal configuración de flags */}
       {showSettings && (
@@ -693,6 +782,11 @@ export default function Scanner() {
                       </button>
                     )}
 
+                    <button onClick={() => setBarcodeModal(item.ean)} className="text-gray-300 hover:text-primary-500 transition-colors" title="Ver código de barras">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h3v16h-3V4z"/>
+                      </svg>
+                    </button>
                     <button onClick={() => handleRemove(item.ean)} className="text-gray-300 hover:text-red-400 transition-colors">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
