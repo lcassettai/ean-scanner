@@ -13,11 +13,12 @@ interface Props {
   active: boolean;
 }
 
-const reader = new MultiFormatReader();
-reader.setHints(
+// @zxing — solo como fallback cuando BarcodeDetector no está disponible.
+// Sin TRY_HARDER: es más lento y no aporta nada para EAN-13.
+const zxingReader = new MultiFormatReader();
+zxingReader.setHints(
   new Map<DecodeHintType, BarcodeFormat[] | boolean>([
     [DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13]],
-    [DecodeHintType.TRY_HARDER, true],
   ]),
 );
 
@@ -38,6 +39,23 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
 
+  const beep = () => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 1850;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.12);
+      osc.onended = () => ctx.close();
+    } catch { /* ignore si el navegador no lo soporta */ }
+  };
+
   const togglePause = () => {
     const next = !pausedRef.current;
     pausedRef.current = next;
@@ -55,7 +73,7 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
     } catch { /* ignore */ }
   };
 
-  // Tap-to-focus: aplica pointOfInterest en el punto tocado
+  // Tap-to-focus
   const handleTapToFocus = async (e: React.MouseEvent<HTMLDivElement>) => {
     if (!ready) return;
     const track = streamRef.current?.getVideoTracks()[0];
@@ -65,15 +83,22 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
 
-    // Indicador visual en el punto tocado
     setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setTimeout(() => setFocusPoint(null), 800);
+    setTimeout(() => setFocusPoint(null), 900);
 
+    // 1. Intentar pointOfInterest (estándar W3C)
     try {
       await track.applyConstraints({
         advanced: [{ pointOfInterest: { x, y }, focusMode: 'continuous' } as MediaTrackConstraintSet],
       });
-    } catch { /* el dispositivo puede no soportar esta constraint */ }
+    } catch { /* ignore */ }
+
+    // 2. Ciclo manual → continuo: fuerza un barrido de AF en Samsung y similares
+    try {
+      await track.applyConstraints({ advanced: [{ focusMode: 'manual' } as MediaTrackConstraintSet] });
+      await new Promise<void>((r) => setTimeout(r, 80));
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] });
+    } catch { /* ignore */ }
   };
 
   useEffect(() => {
@@ -105,53 +130,102 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
         video.srcObject = stream;
         await video.play();
 
-        // Autofocus continuo inicial + detectar soporte de flash
         const track = stream.getVideoTracks()[0];
-        try {
-          await track.applyConstraints({
-            advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
-          });
-        } catch { /* ignore */ }
-        const capabilities = track.getCapabilities() as MediaTrackCapabilities & { torch?: boolean };
+        const capabilities = track.getCapabilities() as MediaTrackCapabilities & {
+          torch?: boolean;
+          zoom?: { min: number; max: number; step: number };
+          focusMode?: string[];
+        };
+
+        // Forzar cámara principal evitando el ultra-wide (< 1x).
+        // En Samsung S22 Chrome selecciona el ultra-wide por defecto, que es foco
+        // fijo a distancia larga y no puede enfocar códigos de barra.
+        if (capabilities.zoom && capabilities.zoom.min < 1) {
+          try {
+            await track.applyConstraints({ advanced: [{ zoom: 1 } as MediaTrackConstraintSet] });
+          } catch { /* ignore */ }
+        }
+
+        // Autofocus continuo
+        if (capabilities.focusMode?.includes('continuous')) {
+          try {
+            await track.applyConstraints({
+              advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+            });
+          } catch { /* ignore */ }
+        }
+
         if (capabilities.torch) setTorchSupported(true);
+
+        // Intentar BarcodeDetector nativo (Chrome en Android usa ML Kit — mucho más rápido)
+        type NativeDetector = { detect: (src: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> };
+        let nativeDetector: NativeDetector | null = null;
+        try {
+          if ('BarcodeDetector' in window) {
+            const BD = (window as any).BarcodeDetector;
+            const supported: string[] = await BD.getSupportedFormats();
+            if (supported.includes('ean_13')) {
+              nativeDetector = new BD({ formats: ['ean_13'] }) as NativeDetector;
+            }
+          }
+        } catch { /* no disponible, usar @zxing */ }
 
         setReady(true);
 
-        const canvas = canvasRef.current!;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+        const handleDetection = (text: string) => {
+          const now = Date.now();
+          const debounced = text === lastEanRef.current && now - lastTimeRef.current < 2000;
+          if (!debounced) {
+            lastEanRef.current = text;
+            lastTimeRef.current = now;
+            beep();
+            setFlash(true);
+            setTimeout(() => setFlash(false), 300);
+            onDetected(text);
+          }
+        };
 
-        function scan() {
-          if (!running) return;
-
-          if (!pausedRef.current && video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-
-            try {
-              const luminance = new HTMLCanvasElementLuminanceSource(canvas);
-              const bitmap = new BinaryBitmap(new HybridBinarizer(luminance));
-              const result = reader.decode(bitmap);
-              const text = result.getText();
-              const now = Date.now();
-
-              const debounced = text === lastEanRef.current && now - lastTimeRef.current < 2000;
-              if (!debounced) {
-                lastEanRef.current = text;
-                lastTimeRef.current = now;
-                setFlash(true);
-                setTimeout(() => setFlash(false), 300);
-                onDetected(text);
+        if (nativeDetector) {
+          // Loop async con BarcodeDetector — no necesita canvas, trabaja directo sobre el video
+          (async () => {
+            while (running) {
+              if (!pausedRef.current && video.readyState >= video.HAVE_ENOUGH_DATA) {
+                try {
+                  const results = await nativeDetector!.detect(video);
+                  for (const bc of results) handleDetection(bc.rawValue);
+                } catch { /* ignore */ }
               }
-            } catch {
-              // NotFoundException — normal
+              await new Promise<void>((r) => setTimeout(r, 80));
             }
+          })();
+        } else {
+          // Fallback @zxing: recortar solo la banda central del frame para reducir trabajo
+          const canvas = canvasRef.current!;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+
+          function scan() {
+            if (!running) return;
+
+            if (!pausedRef.current && video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+              // Solo procesar el 50% central en altura (donde está la mira de escaneo)
+              const cropY = Math.floor(video.videoHeight * 0.25);
+              const cropH = Math.floor(video.videoHeight * 0.5);
+              canvas.width = video.videoWidth;
+              canvas.height = cropH;
+              ctx.drawImage(video, 0, cropY, video.videoWidth, cropH, 0, 0, canvas.width, canvas.height);
+
+              try {
+                const luminance = new HTMLCanvasElementLuminanceSource(canvas);
+                const bitmap = new BinaryBitmap(new HybridBinarizer(luminance));
+                handleDetection(zxingReader.decode(bitmap).getText());
+              } catch { /* NotFoundException — normal */ }
+            }
+
+            rafRef.current = requestAnimationFrame(scan);
           }
 
           rafRef.current = requestAnimationFrame(scan);
         }
-
-        rafRef.current = requestAnimationFrame(scan);
       } catch (e: unknown) {
         const err = e as Error;
         if (err.name === 'NotAllowedError') {
