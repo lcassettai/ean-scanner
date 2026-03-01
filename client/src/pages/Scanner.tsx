@@ -239,10 +239,65 @@ export default function Scanner() {
   const { session, pendingScans, pendingDeletes = [] } = state;
   if (!session) return null;
 
+  // ────────── Modal CSV (compartido entre pantallas) ──────────
+  const csvModal = showCsvModal && lastSync ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50" onClick={() => setShowCsvModal(false)}>
+      <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900 text-base">Exportar CSV</h3>
+          <button onClick={() => setShowCsvModal(false)} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mb-3">Seleccioná las columnas a incluir</p>
+        <div className="space-y-2 mb-5">
+          {([
+            { key: 'ean'          as const, label: 'Código EAN' },
+            { key: 'quantity'     as const, label: 'Cantidad' },
+            { key: 'internalCode' as const, label: 'Código interno' },
+            { key: 'productName'  as const, label: 'Nombre de producto' },
+            { key: 'price'        as const, label: 'Precio' },
+          ]).map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={csvFields[key]}
+                onChange={(e) => setCsvFields((f) => ({ ...f, [key]: e.target.checked }))}
+                className="w-4 h-4 rounded accent-primary-500 cursor-pointer"
+              />
+              <span className="text-sm font-medium text-gray-700">{label}</span>
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setShowCsvModal(false)} className="btn-outline flex-1 text-sm py-2.5">
+            Cancelar
+          </button>
+          <a
+            href={`/api/sessions/${lastSync.shortCode}/export?fields=${Object.entries(csvFields).filter(([, v]) => v).map(([k]) => k).join(',')}`}
+            download
+            onClick={() => setShowCsvModal(false)}
+            className={`flex-1 text-sm py-2.5 flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors ${
+              Object.values(csvFields).some(Boolean)
+                ? 'bg-primary-500 hover:bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-400 pointer-events-none'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Descargar
+          </a>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   // ────────── Modal resultado ──────────
   if (showResult && lastSync) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
+        {csvModal}
         <Toast show={showToast} message={toastMessage} />
         <div className="card p-6 w-full max-w-md">
           <div className="text-center mb-6">
@@ -284,7 +339,7 @@ export default function Scanner() {
           </button>
 
           <div className="flex gap-3">
-            <button onClick={() => setShowResult(false)} className="btn-primary flex-1 text-sm py-2.5">
+            <button onClick={() => { setShowResult(false); setShowCsvModal(false); }} className="btn-primary flex-1 text-sm py-2.5">
               Continuar escaneando
             </button>
             <button
@@ -368,59 +423,7 @@ export default function Scanner() {
         </div>
       )}
 
-      {/* Modal exportar CSV */}
-      {showCsvModal && lastSync && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50" onClick={() => setShowCsvModal(false)}>
-          <div className="card p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900 text-base">Exportar CSV</h3>
-              <button onClick={() => setShowCsvModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mb-3">Seleccioná las columnas a incluir</p>
-            <div className="space-y-2 mb-5">
-              {([
-                { key: 'ean'          as const, label: 'Código EAN' },
-                { key: 'quantity'     as const, label: 'Cantidad' },
-                { key: 'internalCode' as const, label: 'Código interno' },
-                { key: 'productName'  as const, label: 'Nombre de producto' },
-                { key: 'price'        as const, label: 'Precio' },
-              ]).map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-3 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={csvFields[key]}
-                    onChange={(e) => setCsvFields((f) => ({ ...f, [key]: e.target.checked }))}
-                    className="w-4 h-4 rounded accent-primary-500 cursor-pointer"
-                  />
-                  <span className="text-sm font-medium text-gray-700">{label}</span>
-                </label>
-              ))}
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowCsvModal(false)} className="btn-outline flex-1 text-sm py-2.5">
-                Cancelar
-              </button>
-              <a
-                href={`/api/sessions/${lastSync.shortCode}/export?fields=${Object.entries(csvFields).filter(([, v]) => v).map(([k]) => k).join(',')}`}
-                download
-                onClick={() => setShowCsvModal(false)}
-                className={`flex-1 text-sm py-2.5 flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors ${
-                  Object.values(csvFields).some(Boolean)
-                    ? 'bg-primary-500 hover:bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-400 pointer-events-none'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Descargar
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+      {csvModal}
 
       {/* Modal confirmación de salida */}
       {showExitConfirm && (

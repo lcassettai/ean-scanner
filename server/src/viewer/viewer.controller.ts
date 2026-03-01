@@ -123,15 +123,15 @@ export class ViewerController {
               </svg>
               Actualizar
             </button>
-            <a
-              href="/api/sessions/${code}/export"
+            <button
+              onclick="openCsvModal()"
               class="flex items-center gap-1 bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
               </svg>
               CSV
-            </a>
+            </button>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -151,6 +151,57 @@ export class ViewerController {
       </div>
     </div>
 
+  </div>
+
+  <!-- Modal exportar CSV -->
+  <div id="csvModal" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50" onclick="closeCsvModal()">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-gray-900 text-base">Exportar CSV</h3>
+        <button onclick="closeCsvModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <p class="text-xs text-gray-400 mb-3">Seleccioná las columnas a incluir</p>
+      <div class="space-y-2 mb-5">
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="csv_ean" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+          <span class="text-sm font-medium text-gray-700">Código EAN</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="csv_quantity" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+          <span class="text-sm font-medium text-gray-700">Cantidad</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="csv_internalCode" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+          <span class="text-sm font-medium text-gray-700">Código interno</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="csv_productName" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+          <span class="text-sm font-medium text-gray-700">Nombre de producto</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="csv_price" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+          <span class="text-sm font-medium text-gray-700">Precio</span>
+        </label>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="closeCsvModal()" class="flex-1 text-sm py-2.5 border-2 border-gray-200 text-gray-600 hover:border-gray-300 rounded-xl font-semibold transition-colors">
+          Cancelar
+        </button>
+        <a id="csvDownloadBtn" href="#" download
+          class="flex-1 text-sm py-2.5 flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors bg-gray-100 text-gray-400 pointer-events-none"
+          onclick="closeCsvModal()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Descargar
+        </a>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -256,6 +307,31 @@ export class ViewerController {
     document.getElementById('accessCodeInput').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') verifyAccess();
     });
+
+    function openCsvModal() {
+      ['ean','quantity','internalCode','productName','price'].forEach(f => {
+        document.getElementById('csv_' + f).checked = false;
+      });
+      updateCsvBtn();
+      document.getElementById('csvModal').classList.remove('hidden');
+    }
+
+    function closeCsvModal() {
+      document.getElementById('csvModal').classList.add('hidden');
+    }
+
+    function updateCsvBtn() {
+      const fields = ['ean','quantity','internalCode','productName','price']
+        .filter(f => document.getElementById('csv_' + f).checked);
+      const btn = document.getElementById('csvDownloadBtn');
+      if (fields.length === 0) {
+        btn.href = '#';
+        btn.className = 'flex-1 text-sm py-2.5 flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors bg-gray-100 text-gray-400 pointer-events-none';
+      } else {
+        btn.href = '/api/sessions/${code}/export?fields=' + fields.join(',');
+        btn.className = 'flex-1 text-sm py-2.5 flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors bg-green-500 hover:bg-green-600 text-white';
+      }
+    }
   </script>
   <style>
     @keyframes spin { to { transform: rotate(360deg); } }
