@@ -18,6 +18,9 @@ export class SessionsService {
         accessCode,
         name: dto.name,
         type: dto.type ?? null,
+        askInternalCode: dto.askInternalCode ?? false,
+        askProductName: dto.askProductName ?? false,
+        askPrice: dto.askPrice ?? false,
         scans: {
           create: this.mergeScans(dto.scans),
         },
@@ -30,6 +33,9 @@ export class SessionsService {
       accessCode: session.accessCode,
       name: session.name,
       type: session.type,
+      askInternalCode: session.askInternalCode,
+      askProductName: session.askProductName,
+      askPrice: session.askPrice,
       totalScans: session.scans.length,
     };
   }
@@ -49,11 +55,23 @@ export class SessionsService {
       if (existing) {
         await this.prisma.scan.update({
           where: { id: existing.id },
-          data: { quantity: existing.quantity + item.quantity },
+          data: {
+            quantity:     existing.quantity + item.quantity,
+            internalCode: item.internalCode ?? existing.internalCode,
+            productName:  item.productName  ?? existing.productName,
+            price:        item.price        ?? existing.price,
+          },
         });
       } else {
         await this.prisma.scan.create({
-          data: { ean: item.ean, quantity: item.quantity, sessionId: session.id },
+          data: {
+            ean:          item.ean,
+            quantity:     item.quantity,
+            internalCode: item.internalCode,
+            productName:  item.productName,
+            price:        item.price,
+            sessionId:    session.id,
+          },
         });
       }
     }
@@ -80,8 +98,11 @@ export class SessionsService {
     const session = await this.getSession(code);
 
     const rows = session.scans.map((s) => ({
-      EAN: s.ean,
-      Cantidad: s.quantity,
+      EAN:            s.ean,
+      Cantidad:       s.quantity,
+      CodigoInterno:  s.internalCode ?? '',
+      NombreProducto: s.productName  ?? '',
+      Precio:         s.price        ?? '',
     }));
 
     return stringify(rows, { header: true });
@@ -99,10 +120,18 @@ export class SessionsService {
   }
 
   private mergeScans(scans: ScanItemDto[]): ScanItemDto[] {
-    const map = new Map<string, number>();
+    const map = new Map<string, ScanItemDto>();
     for (const s of scans) {
-      map.set(s.ean, (map.get(s.ean) ?? 0) + s.quantity);
+      const existing = map.get(s.ean);
+      if (existing) {
+        existing.quantity     += s.quantity;
+        existing.internalCode  = s.internalCode ?? existing.internalCode;
+        existing.productName   = s.productName  ?? existing.productName;
+        existing.price         = s.price        ?? existing.price;
+      } else {
+        map.set(s.ean, { ...s });
+      }
     }
-    return Array.from(map.entries()).map(([ean, quantity]) => ({ ean, quantity }));
+    return Array.from(map.values());
   }
 }

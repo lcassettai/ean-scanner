@@ -1,6 +1,9 @@
 export interface ScanItem {
   ean: string;
   quantity: number;
+  internalCode?: string;
+  productName?: string;
+  price?: number;
 }
 
 export interface SessionMeta {
@@ -10,6 +13,9 @@ export interface SessionMeta {
   shortCode: string | null;
   accessCode: string | null;
   createdAt: string; // ISO date string
+  askInternalCode: boolean;
+  askProductName: boolean;
+  askPrice: boolean;
 }
 
 export interface SessionState {
@@ -29,5 +35,8 @@ export interface SyncResult {
   accessCode: string;
   name: string;
   type: string | null;
+  askInternalCode: boolean;
+  askProductName: boolean;
+  askPrice: boolean;
   totalScans: number;
 }

@@ -139,6 +139,9 @@ export class ViewerController {
             <thead class="bg-primary-50 text-primary-700 text-xs uppercase tracking-wide">
               <tr>
                 <th class="text-left px-4 py-3">Código EAN</th>
+                <th class="text-left px-4 py-3">Cód. Interno</th>
+                <th class="text-left px-4 py-3">Producto</th>
+                <th class="text-right px-4 py-3">Precio</th>
                 <th class="text-center px-4 py-3">Cantidad</th>
               </tr>
             </thead>
@@ -236,6 +239,9 @@ export class ViewerController {
       tbody.innerHTML = data.scans.map((s, i) => \`
         <tr class="\${i % 2 === 0 ? 'bg-white' : 'bg-primary-50/30'}">
           <td class="px-4 py-3 font-mono text-gray-800">\${s.ean}</td>
+          <td class="px-4 py-3 text-gray-600">\${s.internalCode || '—'}</td>
+          <td class="px-4 py-3 text-gray-600">\${s.productName || '—'}</td>
+          <td class="px-4 py-3 text-right text-gray-600">\${s.price != null ? s.price.toFixed(2) : '—'}</td>
           <td class="px-4 py-3 text-center font-semibold text-primary-700">\${s.quantity}</td>
         </tr>
       \`).join('');

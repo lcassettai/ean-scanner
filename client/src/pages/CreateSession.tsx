@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { startSession, resumeSession, getHistory, deleteHistoryEntry } from '../services/storage';
+import Toast from '../components/Toast';
 import type { HistoryEntry } from '../types';
 
 const SESSION_TYPES = [
@@ -34,7 +35,13 @@ export default function CreateSession() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [type, setType] = useState('stock');
+  const [customType, setCustomType] = useState('');
+  const [askInternalCode, setAskInternalCode] = useState(false);
+  const [askProductName, setAskProductName] = useState(false);
+  const [askPrice, setAskPrice] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [viewingSession, setViewingSession] = useState<{ shortCode: string; accessCode: string; name: string } | null>(null);
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     setHistory(getHistory());
@@ -42,7 +49,9 @@ export default function CreateSession() {
 
   const handleStart = () => {
     if (!name.trim()) return;
-    startSession(name.trim(), type);
+    if (type === 'other' && !customType.trim()) return;
+    const resolvedType = type === 'other' ? customType.trim() : type;
+    startSession(name.trim(), resolvedType, { askInternalCode, askProductName, askPrice });
     navigate('/scan');
   };
 
@@ -56,8 +65,73 @@ export default function CreateSession() {
     setHistory(getHistory());
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  const handleCopyUrl = () => {
+    if (!viewingSession) return;
+    copyToClipboard(`${window.location.origin}/i/${viewingSession.shortCode}`);
+  };
+
+  const handleCopyCode = () => {
+    if (!viewingSession) return;
+    copyToClipboard(viewingSession.accessCode);
+  };
+
+  const handleCopy = () => {
+    if (!viewingSession) return;
+    copyToClipboard(
+      `URL: ${window.location.origin}/i/${viewingSession.shortCode}\nCódigo de acceso: ${viewingSession.accessCode}`
+    );
+  };
+
   return (
     <div className="min-h-screen px-4 py-10">
+      <Toast show={showToast} />
+      {/* Modal ver código */}
+      {viewingSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40" onClick={() => setViewingSession(null)}>
+          <div className="card p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-base truncate pr-4">{viewingSession.name}</h2>
+              <button onClick={() => setViewingSession(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="bg-primary-50 rounded-xl p-4 mb-4 space-y-3">
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1">URL de acceso</p>
+                <button
+                  onClick={handleCopyUrl}
+                  className="font-mono text-sm text-primary-700 break-all text-left w-full hover:text-primary-900 transition-colors cursor-pointer"
+                  title="Copiar URL"
+                >
+                  {window.location.origin}/i/{viewingSession.shortCode}
+                </button>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1">Código de acceso</p>
+                <button
+                  onClick={handleCopyCode}
+                  className="font-mono text-3xl font-bold text-gray-900 tracking-widest hover:text-primary-600 transition-colors cursor-pointer"
+                  title="Copiar código"
+                >
+                  {viewingSession.accessCode}
+                </button>
+              </div>
+            </div>
+            <button onClick={handleCopy} className="btn-outline w-full flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              Copiar URL y código
+            </button>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -105,11 +179,46 @@ export default function CreateSession() {
                 </button>
               ))}
             </div>
+            {type === 'other' && (
+              <input
+                type="text"
+                className="input-field mt-3 text-sm"
+                placeholder="Describí el tipo de escaneo..."
+                value={customType}
+                onChange={(e) => setCustomType(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleStart()}
+                autoFocus
+              />
+            )}
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Datos adicionales por ítem</label>
+            <div className="space-y-2">
+              {[
+                { key: 'internalCode' as const, label: 'Código interno', state: askInternalCode, setter: setAskInternalCode },
+                { key: 'productName'  as const, label: 'Nombre de producto', state: askProductName, setter: setAskProductName },
+                { key: 'price'        as const, label: 'Precio', state: askPrice, setter: setAskPrice },
+              ].map(({ key, label, state, setter }) => (
+                <label key={key} className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={state}
+                    onChange={(e) => setter(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded accent-primary-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">{label}</span>
+                    <p className="text-xs text-gray-400">Se solicitará en cada escaneo de ítem</p>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
 
           <button
             onClick={handleStart}
-            disabled={!name.trim()}
+            disabled={!name.trim() || (type === 'other' && !customType.trim())}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
             <span>Iniciar escaneo</span>
@@ -177,15 +286,17 @@ export default function CreateSession() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {entry.session.shortCode && (
-                          <a
-                            href={`/i/${entry.session.shortCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                        {entry.session.shortCode && entry.session.accessCode && (
+                          <button
+                            onClick={() => setViewingSession({ shortCode: entry.session.shortCode!, accessCode: entry.session.accessCode!, name: entry.session.name })}
+                            className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                            title="Ver URL y código de acceso"
                           >
-                            Ver web ↗
-                          </a>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            Ver código
+                          </button>
                         )}
                         <button
                           onClick={() => handleResume(entry)}

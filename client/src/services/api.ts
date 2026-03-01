@@ -6,11 +6,12 @@ export async function createSession(
   name: string,
   type: string,
   scans: ScanItem[],
+  flags?: { askInternalCode?: boolean; askProductName?: boolean; askPrice?: boolean },
 ): Promise<SyncResult> {
   const res = await fetch(`${BASE}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, type, scans }),
+    body: JSON.stringify({ name, type, scans, ...flags }),
   });
   if (!res.ok) throw new Error('Error al crear la sesión');
   return res.json();

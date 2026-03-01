@@ -87,7 +87,11 @@ function saveSessionState(state: SessionState): void {
   syncToHistory(state);
 }
 
-export function startSession(name: string, type: string): void {
+export function startSession(
+  name: string,
+  type: string,
+  flags: { askInternalCode: boolean; askProductName: boolean; askPrice: boolean },
+): void {
   const state: SessionState = {
     session: {
       id: Date.now().toString(),
@@ -96,6 +100,9 @@ export function startSession(name: string, type: string): void {
       shortCode: null,
       accessCode: null,
       createdAt: new Date().toISOString(),
+      askInternalCode: flags.askInternalCode,
+      askProductName: flags.askProductName,
+      askPrice: flags.askPrice,
     },
     pendingScans: [],
     allScans: [],
@@ -136,9 +143,35 @@ export function removeScan(ean: string): void {
 export function updateQuantity(ean: string, quantity: number): void {
   const state = getSessionState();
   const pending = state.pendingScans.find((s) => s.ean === ean);
-  if (pending) pending.quantity = quantity;
+  if (pending) {
+    pending.quantity = quantity;
+  } else {
+    // El ítem ya fue sincronizado; lo vuelve a pending para que se re-sincronice
+    state.pendingScans.push({ ean, quantity });
+  }
   const all = state.allScans.find((s) => s.ean === ean);
   if (all) all.quantity = quantity;
+  saveSessionState(state);
+}
+
+export interface ScanDetails {
+  quantity: number;
+  internalCode?: string;
+  productName?: string;
+  price?: number;
+}
+
+export function updateScanDetails(ean: string, details: ScanDetails): void {
+  const state = getSessionState();
+  const pending = state.pendingScans.find((s) => s.ean === ean);
+  if (pending) {
+    Object.assign(pending, details);
+  } else {
+    // El ítem ya fue sincronizado; lo vuelve a pending para re-sincronizar
+    state.pendingScans.push({ ean, ...details });
+  }
+  const all = state.allScans.find((s) => s.ean === ean);
+  if (all) Object.assign(all, details);
   saveSessionState(state);
 }
 
