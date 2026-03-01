@@ -151,15 +151,36 @@ export default function CreateSession() {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Nombre de la sesión <span className="text-red-400">*</span>
             </label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Ej: Recuento depósito A - Marzo 2026"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleStart()}
-              autoFocus
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Ej: Recuento depósito A - Marzo 2026"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleStart()}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const dd   = String(now.getDate()).padStart(2, '0');
+                  const mm   = String(now.getMonth() + 1).padStart(2, '0');
+                  const yyyy = now.getFullYear();
+                  const hh   = String(now.getHours()).padStart(2, '0');
+                  const min  = String(now.getMinutes()).padStart(2, '0');
+                  const stamp = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+                  setName((prev) => (prev.trim() ? `${prev.trim()} ${stamp}` : stamp));
+                }}
+                className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border-2 border-primary-200 text-primary-500 hover:border-primary-400 hover:bg-primary-50 transition-all"
+                title="Agregar fecha y hora al nombre"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div className="mb-6">
@@ -193,7 +214,10 @@ export default function CreateSession() {
           </div>
 
           <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Datos adicionales por ítem</label>
+            <div className="mb-2">
+              <label className="block text-sm font-semibold text-gray-700">Datos solicitados por ítem</label>
+            <p className="text-xs text-gray-400">Se solicitará en cada escaneo de ítem</p>
+            </div>
             <div className="space-y-2">
               {[
                 { key: 'internalCode' as const, label: 'Código interno', state: askInternalCode, setter: setAskInternalCode },
@@ -209,7 +233,6 @@ export default function CreateSession() {
                   />
                   <div>
                     <span className="text-sm font-medium text-gray-700">{label}</span>
-                    <p className="text-xs text-gray-400">Se solicitará en cada escaneo de ítem</p>
                   </div>
                 </label>
               ))}
