@@ -173,7 +173,7 @@ export default function CreateSession() {
                   const stamp = `${dd}/${mm}/${yyyy} ${hh}:${min}`;
                   setName((prev) => (prev.trim() ? `${prev.trim()} ${stamp}` : stamp));
                 }}
-                className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border-2 border-primary-200 text-primary-500 hover:border-primary-400 hover:bg-primary-50 transition-all"
+                className="flex-shrink-0 w-10 h-12 flex items-center justify-center rounded-xl border-2 border-primary-200 text-primary-500 hover:border-primary-400 hover:bg-primary-50 transition-all"
                 title="Agregar fecha y hora al nombre"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

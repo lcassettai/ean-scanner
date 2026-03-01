@@ -94,16 +94,34 @@ export class SessionsService {
     return session;
   }
 
-  async exportCsv(code: string): Promise<string> {
+  async exportCsv(code: string, fields?: string[]): Promise<string> {
     const session = await this.getSession(code);
 
-    const rows = session.scans.map((s) => ({
-      EAN:            s.ean,
-      Cantidad:       s.quantity,
-      CodigoInterno:  s.internalCode ?? '',
-      NombreProducto: s.productName  ?? '',
-      Precio:         s.price        ?? '',
-    }));
+    const all = {
+      EAN:            (s: typeof session.scans[0]) => s.ean,
+      Cantidad:       (s: typeof session.scans[0]) => s.quantity,
+      CodigoInterno:  (s: typeof session.scans[0]) => s.internalCode ?? '',
+      NombreProducto: (s: typeof session.scans[0]) => s.productName  ?? '',
+      Precio:         (s: typeof session.scans[0]) => s.price        ?? '',
+    };
+
+    const fieldMap: Record<string, keyof typeof all> = {
+      ean:           'EAN',
+      quantity:      'Cantidad',
+      internalCode:  'CodigoInterno',
+      productName:   'NombreProducto',
+      price:         'Precio',
+    };
+
+    const selected: (keyof typeof all)[] = fields && fields.length > 0
+      ? fields.map((f) => fieldMap[f]).filter(Boolean)
+      : (Object.keys(all) as (keyof typeof all)[]);
+
+    const rows = session.scans.map((s) => {
+      const row: Record<string, unknown> = {};
+      for (const col of selected) row[col] = all[col](s);
+      return row;
+    });
 
     return stringify(rows, { header: true });
   }
