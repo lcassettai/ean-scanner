@@ -31,6 +31,7 @@ export default function Scanner() {
   const [showResult, setShowResult] = useState(false);
   const [lastSync, setLastSync] = useState<{ shortCode: string; accessCode: string } | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('Texto copiado');
   const [manualEan, setManualEan] = useState('');
   const [editingQty, setEditingQty] = useState<{ ean: string; value: string } | null>(null);
   const [blinkingEan, setBlinkingEan] = useState<string | null>(null);
@@ -151,13 +152,16 @@ export default function Scanner() {
         });
         clearPendingScans();
         setLastSync({ shortCode: result.shortCode, accessCode: result.accessCode });
+        refresh();
+        setShowResult(true);
       } else {
         await addScans(current.session.shortCode, current.pendingScans);
         clearPendingScans();
-        setLastSync({ shortCode: current.session.shortCode, accessCode: current.session.accessCode! });
+        refresh();
+        setToastMessage('Datos sincronizados');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2500);
       }
-      refresh();
-      setShowResult(true);
     } catch (e) {
       setSyncError(e instanceof Error ? e.message : 'Error de red');
     } finally {
@@ -201,6 +205,7 @@ export default function Scanner() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+    setToastMessage('Texto copiado');
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   };
@@ -229,7 +234,7 @@ export default function Scanner() {
   if (showResult && lastSync) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
-        <Toast show={showToast} />
+        <Toast show={showToast} message={toastMessage} />
         <div className="card p-6 w-full max-w-md">
           <div className="text-center mb-6">
             <div className="w-14 h-14 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -287,7 +292,7 @@ export default function Scanner() {
   // ────────── Vista de escaneo ──────────
   return (
     <div className="min-h-screen flex flex-col max-w-lg mx-auto px-4 py-4">
-      <Toast show={showToast} />
+      <Toast show={showToast} message={toastMessage} />
 
       {/* Modal configuración de flags */}
       {showSettings && (
