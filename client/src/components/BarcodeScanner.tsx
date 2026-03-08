@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   MultiFormatReader,
   BinaryBitmap,
@@ -14,7 +14,6 @@ interface Props {
 }
 
 // @zxing — solo como fallback cuando BarcodeDetector no está disponible.
-// Sin TRY_HARDER: es más lento y no aporta nada para EAN-13.
 const zxingReader = new MultiFormatReader();
 zxingReader.setHints(
   new Map<DecodeHintType, BarcodeFormat[] | boolean>([
@@ -25,19 +24,20 @@ zxingReader.setHints(
 export default function BarcodeScanner({ onDetected, active }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const lastEanRef = useRef('');
   const lastTimeRef = useRef(0);
-  const pausedRef = useRef(false);
+  // Función de captura asignada después de iniciar la cámara
+  const captureRef = useRef<(() => Promise<string | null>) | null>(null);
 
-  const [paused, setPaused] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [ready, setReady] = useState(false);
   const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const beep = () => {
     try {
@@ -53,13 +53,7 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.12);
       osc.onended = () => ctx.close();
-    } catch { /* ignore si el navegador no lo soporta */ }
-  };
-
-  const togglePause = () => {
-    const next = !pausedRef.current;
-    pausedRef.current = next;
-    setPaused(next);
+    } catch { /* ignore */ }
   };
 
   const toggleTorch = async (e: React.MouseEvent) => {
@@ -86,14 +80,12 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
     setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     setTimeout(() => setFocusPoint(null), 900);
 
-    // 1. Intentar pointOfInterest (estándar W3C)
     try {
       await track.applyConstraints({
         advanced: [{ pointOfInterest: { x, y }, focusMode: 'continuous' } as MediaTrackConstraintSet],
       });
     } catch { /* ignore */ }
 
-    // 2. Ciclo manual → continuo: fuerza un barrido de AF en Samsung y similares
     try {
       await track.applyConstraints({ advanced: [{ focusMode: 'manual' } as MediaTrackConstraintSet] });
       await new Promise<void>((r) => setTimeout(r, 80));
@@ -101,12 +93,35 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
     } catch { /* ignore */ }
   };
 
-  useEffect(() => {
-    if (!active) {
-      pausedRef.current = false;
-      setPaused(false);
-      return;
+  // Captura un frame y devuelve el EAN encontrado (o null)
+  const handleCapture = useCallback(async () => {
+    if (!captureRef.current || scanning || !ready) return;
+    setScanning(true);
+    setNotFound(false);
+
+    const result = await captureRef.current();
+
+    if (result) {
+      const now = Date.now();
+      const debounced = result === lastEanRef.current && now - lastTimeRef.current < 2000;
+      if (!debounced) {
+        lastEanRef.current = result;
+        lastTimeRef.current = now;
+        beep();
+        setFlash(true);
+        setTimeout(() => setFlash(false), 300);
+        onDetected(result);
+      }
+    } else {
+      setNotFound(true);
+      setTimeout(() => setNotFound(false), 1200);
     }
+
+    setScanning(false);
+  }, [scanning, ready, onDetected]);
+
+  useEffect(() => {
+    if (!active) return;
 
     let running = true;
 
@@ -138,8 +153,6 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
         };
 
         // Forzar cámara principal evitando el ultra-wide (< 1x).
-        // En Samsung S22 Chrome selecciona el ultra-wide por defecto, que es foco
-        // fijo a distancia larga y no puede enfocar códigos de barra.
         if (capabilities.zoom && capabilities.zoom.min < 1) {
           try {
             await track.applyConstraints({ advanced: [{ zoom: 1 } as MediaTrackConstraintSet] });
@@ -157,7 +170,7 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
 
         if (capabilities.torch) setTorchSupported(true);
 
-        // Intentar BarcodeDetector nativo (Chrome en Android usa ML Kit — mucho más rápido)
+        // Intentar BarcodeDetector nativo
         type NativeDetector = { detect: (src: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> };
         let nativeDetector: NativeDetector | null = null;
         try {
@@ -170,62 +183,38 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
           }
         } catch { /* no disponible, usar @zxing */ }
 
-        setReady(true);
-
-        const handleDetection = (text: string) => {
-          const now = Date.now();
-          const debounced = text === lastEanRef.current && now - lastTimeRef.current < 2000;
-          if (!debounced) {
-            lastEanRef.current = text;
-            lastTimeRef.current = now;
-            beep();
-            setFlash(true);
-            setTimeout(() => setFlash(false), 300);
-            onDetected(text);
-          }
-        };
-
         if (nativeDetector) {
-          // Loop async con BarcodeDetector — no necesita canvas, trabaja directo sobre el video
-          (async () => {
-            while (running) {
-              if (!pausedRef.current && video.readyState >= video.HAVE_ENOUGH_DATA) {
-                try {
-                  const results = await nativeDetector!.detect(video);
-                  for (const bc of results) handleDetection(bc.rawValue);
-                } catch { /* ignore */ }
-              }
-              await new Promise<void>((r) => setTimeout(r, 80));
+          captureRef.current = async () => {
+            const v = videoRef.current!;
+            if (v.readyState < v.HAVE_ENOUGH_DATA) return null;
+            try {
+              const results = await nativeDetector!.detect(v);
+              return results.length > 0 ? results[0].rawValue : null;
+            } catch {
+              return null;
             }
-          })();
+          };
         } else {
-          // Fallback @zxing: recortar solo la banda central del frame para reducir trabajo
+          // Fallback @zxing: captura el frame completo al momento del botón
           const canvas = canvasRef.current!;
           const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-
-          function scan() {
-            if (!running) return;
-
-            if (!pausedRef.current && video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-              // Solo procesar el 50% central en altura (donde está la mira de escaneo)
-              const cropY = Math.floor(video.videoHeight * 0.25);
-              const cropH = Math.floor(video.videoHeight * 0.5);
-              canvas.width = video.videoWidth;
-              canvas.height = cropH;
-              ctx.drawImage(video, 0, cropY, video.videoWidth, cropH, 0, 0, canvas.width, canvas.height);
-
-              try {
-                const luminance = new HTMLCanvasElementLuminanceSource(canvas);
-                const bitmap = new BinaryBitmap(new HybridBinarizer(luminance));
-                handleDetection(zxingReader.decode(bitmap).getText());
-              } catch { /* NotFoundException — normal */ }
+          captureRef.current = async () => {
+            const v = videoRef.current!;
+            if (v.readyState < v.HAVE_ENOUGH_DATA || v.videoWidth === 0) return null;
+            canvas.width = v.videoWidth;
+            canvas.height = v.videoHeight;
+            ctx.drawImage(v, 0, 0);
+            try {
+              const luminance = new HTMLCanvasElementLuminanceSource(canvas);
+              const bitmap = new BinaryBitmap(new HybridBinarizer(luminance));
+              return zxingReader.decode(bitmap).getText();
+            } catch {
+              return null;
             }
-
-            rafRef.current = requestAnimationFrame(scan);
-          }
-
-          rafRef.current = requestAnimationFrame(scan);
+          };
         }
+
+        setReady(true);
       } catch (e: unknown) {
         const err = e as Error;
         if (err.name === 'NotAllowedError') {
@@ -240,8 +229,7 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
 
     return () => {
       running = false;
-      cancelAnimationFrame(rafRef.current);
-      // Apagar el flash antes de cerrar el stream
+      captureRef.current = null;
       try {
         streamRef.current?.getVideoTracks()[0]?.applyConstraints({
           advanced: [{ torch: false } as MediaTrackConstraintSet],
@@ -253,7 +241,7 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
       setTorchSupported(false);
       setReady(false);
     };
-  }, [active, onDetected]);
+  }, [active]);
 
   if (error) {
     return (
@@ -269,12 +257,12 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
 
   return (
     <>
-      {/* Canvas siempre en el DOM (oculto), necesario para el stream */}
+      {/* Canvas oculto para captura con @zxing */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Cámara: oculta cuando pausada pero el stream sigue vivo para reanudar rápido */}
+      {/* Vista de cámara */}
       <div
-        className={`relative w-full overflow-hidden rounded-2xl bg-black ${paused ? 'hidden' : ''}`}
+        className="relative w-full overflow-hidden rounded-2xl bg-black"
         style={{ height: '260px' }}
         onClick={handleTapToFocus}
       >
@@ -292,14 +280,15 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
                 style={{ borderBottomWidth: 3, borderLeftWidth: 3 }} />
               <div className="absolute bottom-0 right-0 w-8 h-8 border-primary-400"
                 style={{ borderBottomWidth: 3, borderRightWidth: 3 }} />
-              <div className="scan-line absolute left-2 right-2 h-0.5 bg-primary-400"
-                style={{ boxShadow: '0 0 8px #4ade80' }} />
             </div>
           </div>
         )}
 
         {/* Flash al detectar */}
         {flash && <div className="absolute inset-0 bg-primary-400 opacity-25 rounded-2xl pointer-events-none" />}
+
+        {/* Flash rojo cuando no encontró código */}
+        {notFound && <div className="absolute inset-0 bg-red-400 opacity-20 rounded-2xl pointer-events-none" />}
 
         {/* Indicador visual de tap-to-focus */}
         {focusPoint && (
@@ -309,52 +298,71 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
           />
         )}
 
-        {/* Botones de control */}
-        {ready && (
-          <div className="absolute bottom-3 right-3 flex gap-2 z-10">
-            {torchSupported && (
-              <button
-                onClick={toggleTorch}
-                className={`rounded-full p-2.5 transition-colors ${torchOn ? 'bg-yellow-400 hover:bg-yellow-300 text-black' : 'bg-black/50 hover:bg-black/70 text-white'}`}
-                title={torchOn ? 'Apagar flash' : 'Encender flash'}
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M7 2v11h3v9l7-12h-4l4-8z" />
-                </svg>
-              </button>
-            )}
+        {/* Botón torch */}
+        {ready && torchSupported && (
+          <div className="absolute bottom-3 right-3 z-10">
             <button
-              onClick={(e) => { e.stopPropagation(); togglePause(); }}
-              className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-colors"
-              title="Pausar escaneo"
+              onClick={toggleTorch}
+              className={`rounded-full p-2.5 transition-colors ${torchOn ? 'bg-yellow-400 hover:bg-yellow-300 text-black' : 'bg-black/50 hover:bg-black/70 text-white'}`}
+              title={torchOn ? 'Apagar flash' : 'Encender flash'}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 5h3v14H6V5zm9 0h3v14h-3V5z" />
+                <path d="M7 2v11h3v9l7-12h-4l4-8z" />
               </svg>
             </button>
           </div>
         )}
 
-        {/* Label */}
+        {/* Label estado */}
         <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
           <span className="text-white text-xs bg-black/50 px-3 py-1 rounded-full">
-            {ready ? 'Tocá para enfocar' : 'Iniciando cámara...'}
+            {!ready
+              ? 'Iniciando cámara...'
+              : notFound
+              ? 'No se encontró código'
+              : 'Tocá para enfocar'}
           </span>
         </div>
       </div>
 
-      {/* Botón reanudar (reemplaza la cámara cuando está pausada) */}
-      {paused && (
-        <button
-          onClick={togglePause}
-          className="btn-primary w-full py-3 flex items-center justify-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-          Seguir escaneando
-        </button>
-      )}
+      {/* Botón de captura */}
+      <button
+        onClick={handleCapture}
+        disabled={!ready || scanning}
+        className={`w-full mt-3 py-3 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm transition-colors ${
+          !ready || scanning
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : notFound
+            ? 'bg-red-500 hover:bg-red-600 text-white'
+            : 'btn-primary'
+        }`}
+      >
+        {scanning ? (
+          <>
+            <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            Leyendo...
+          </>
+        ) : notFound ? (
+          <>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            No encontrado — intentar de nuevo
+          </>
+        ) : (
+          <>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Escanear código
+          </>
+        )}
+      </button>
     </>
   );
 }
