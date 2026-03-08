@@ -123,8 +123,8 @@ export function resumeSession(entry: HistoryEntry): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(state));
 }
 
-export function joinSession(result: JoinResult): void {
-  const state: SessionState = {
+function buildSessionStateFromResult(result: JoinResult, allScans: SessionState['allScans']): SessionState {
+  return {
     session: {
       id: Date.now().toString(),
       name: result.name,
@@ -138,9 +138,21 @@ export function joinSession(result: JoinResult): void {
       askPrice: result.askPrice,
     },
     pendingScans: [],
-    allScans: [],
+    allScans,
     pendingDeletes: [],
   };
+}
+
+/** Unirse como colaborador: empieza sin scans locales */
+export function joinSession(result: JoinResult): void {
+  const state = buildSessionStateFromResult(result, []);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  syncToHistory(state);
+}
+
+/** Recuperar sesión perdida: restaura todos los scans del servidor */
+export function recoverSession(result: JoinResult): void {
+  const state = buildSessionStateFromResult(result, result.scans);
   localStorage.setItem(SESSION_KEY, JSON.stringify(state));
   syncToHistory(state);
 }

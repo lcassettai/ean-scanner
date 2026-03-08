@@ -8,6 +8,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { SessionsService } from './sessions.service';
 import { AddScansDto, CreateSessionDto, JoinSessionDto, ExtendSessionDto } from './dto/create-session.dto';
@@ -16,11 +17,15 @@ import { AddScansDto, CreateSessionDto, JoinSessionDto, ExtendSessionDto } from 
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
+  // Crear sesión: máximo 5 por minuto por IP
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post()
   createSession(@Body() dto: CreateSessionDto) {
     return this.sessionsService.createSession(dto);
   }
 
+  // Extender: máximo 10 por minuto por IP
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post(':code/extend')
   async extendSession(@Param('code') code: string, @Body() dto: ExtendSessionDto, @Res() res: Response) {
     const result = await this.sessionsService.extendSession(code, dto.accessCode);
@@ -28,6 +33,8 @@ export class SessionsController {
     return res.json(result);
   }
 
+  // Join/recuperar: máximo 10 por minuto por IP
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post(':code/join')
   async joinSession(@Param('code') code: string, @Body() dto: JoinSessionDto, @Res() res: Response) {
     const session = await this.sessionsService.joinSession(code, dto.accessCode);
@@ -35,11 +42,15 @@ export class SessionsController {
     return res.json(session);
   }
 
+  // Agregar scans: máximo 30 por minuto por IP (uso legítimo puede ser frecuente)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Post(':code/scans')
   addScans(@Param('code') code: string, @Body() dto: AddScansDto) {
     return this.sessionsService.addScans(code, dto);
   }
 
+  // Eliminar scans: máximo 10 por minuto por IP
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Delete(':code/scans')
   deleteScans(@Param('code') code: string, @Body() body: { eans: string[] }) {
     return this.sessionsService.deleteScans(code, body.eans);
