@@ -43,6 +43,7 @@ export default function CreateSession() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [viewingSession, setViewingSession] = useState<{ shortCode: string; accessCode: string; name: string } | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     setHistory(getHistory());
@@ -64,6 +65,7 @@ export default function CreateSession() {
   const handleDelete = (id: string) => {
     deleteHistoryEntry(id);
     setHistory(getHistory());
+    setDeleteConfirm(null);
   };
 
   const copyToClipboard = (text: string) => {
@@ -133,6 +135,32 @@ export default function CreateSession() {
           </div>
         </div>
       )}
+      {/* Modal confirmación eliminar sesión */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50">
+          <div className="card p-6 w-full max-w-sm">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="font-bold text-gray-900 text-base text-center mb-2">¿Eliminar sesión?</h3>
+            <p className="text-sm text-gray-500 text-center mb-5">
+              Esta acción no se puede deshacer. La sesión se eliminará del historial local.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="btn-outline flex-1 text-sm py-2.5">
+                Cancelar
+              </button>
+              <button onClick={() => handleDelete(deleteConfirm)} className="btn-danger flex-1 text-sm py-2.5">
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -286,7 +314,7 @@ export default function CreateSession() {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleDelete(entry.session.id)}
+                        onClick={() => setDeleteConfirm(entry.session.id)}
                         className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 p-0.5"
                         title="Eliminar sesión"
                       >

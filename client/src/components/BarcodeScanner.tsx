@@ -38,6 +38,7 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
   const [torchSupported, setTorchSupported] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [restartKey, setRestartKey] = useState(0);
 
   const beep = () => {
     try {
@@ -241,7 +242,7 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
       setTorchSupported(false);
       setReady(false);
     };
-  }, [active]);
+  }, [active, restartKey]);
 
   if (error) {
     return (
@@ -298,16 +299,28 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
           />
         )}
 
-        {/* Botón torch */}
-        {ready && torchSupported && (
-          <div className="absolute bottom-3 right-3 z-10">
+        {/* Botones torch + reiniciar */}
+        {ready && (
+          <div className="absolute bottom-3 right-3 z-10 flex gap-2">
+            {torchSupported && (
+              <button
+                onClick={toggleTorch}
+                className={`rounded-full p-2.5 transition-colors ${torchOn ? 'bg-yellow-400 hover:bg-yellow-300 text-black' : 'bg-black/50 hover:bg-black/70 text-white'}`}
+                title={torchOn ? 'Apagar flash' : 'Encender flash'}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 2v11h3v9l7-12h-4l4-8z" />
+                </svg>
+              </button>
+            )}
             <button
-              onClick={toggleTorch}
-              className={`rounded-full p-2.5 transition-colors ${torchOn ? 'bg-yellow-400 hover:bg-yellow-300 text-black' : 'bg-black/50 hover:bg-black/70 text-white'}`}
-              title={torchOn ? 'Apagar flash' : 'Encender flash'}
+              onClick={(e) => { e.stopPropagation(); setRestartKey((k) => k + 1); }}
+              className="bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-colors"
+              title="Reiniciar cámara"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M7 2v11h3v9l7-12h-4l4-8z" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
           </div>
