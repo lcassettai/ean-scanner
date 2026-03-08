@@ -39,6 +39,16 @@ export async function deleteScans(shortCode: string, eans: string[]): Promise<vo
   if (!res.ok) throw new Error('Error al eliminar ítems');
 }
 
+export async function extendSession(shortCode: string, accessCode: string): Promise<{ createdAt: string }> {
+  const res = await fetch(`${BASE}/sessions/${shortCode}/extend`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessCode }),
+  });
+  if (!res.ok) throw new Error('No se pudo extender la sesión');
+  return res.json();
+}
+
 export async function joinSession(shortCode: string, accessCode: string): Promise<JoinResult> {
   const res = await fetch(`${BASE}/sessions/${shortCode}/join`, {
     method: 'POST',

@@ -141,6 +141,16 @@ export class SessionsService {
     return { ok: true };
   }
 
+  async extendSession(shortCode: string, accessCode: string) {
+    const session = await this.prisma.session.findUnique({ where: { shortCode } });
+    if (!session || session.accessCode !== accessCode) return null;
+    const updated = await this.prisma.session.update({
+      where: { shortCode },
+      data: { createdAt: new Date() },
+    });
+    return { createdAt: updated.createdAt.toISOString() };
+  }
+
   async joinSession(shortCode: string, accessCode: string) {
     const session = await this.prisma.session.findUnique({
       where: { shortCode },

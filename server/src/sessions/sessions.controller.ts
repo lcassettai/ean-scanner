@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { SessionsService } from './sessions.service';
-import { AddScansDto, CreateSessionDto, JoinSessionDto } from './dto/create-session.dto';
+import { AddScansDto, CreateSessionDto, JoinSessionDto, ExtendSessionDto } from './dto/create-session.dto';
 
 @Controller('api/sessions')
 export class SessionsController {
@@ -19,6 +19,13 @@ export class SessionsController {
   @Post()
   createSession(@Body() dto: CreateSessionDto) {
     return this.sessionsService.createSession(dto);
+  }
+
+  @Post(':code/extend')
+  async extendSession(@Param('code') code: string, @Body() dto: ExtendSessionDto, @Res() res: Response) {
+    const result = await this.sessionsService.extendSession(code, dto.accessCode);
+    if (!result) return res.status(401).json({ error: 'Código incorrecto' });
+    return res.json(result);
   }
 
   @Post(':code/join')

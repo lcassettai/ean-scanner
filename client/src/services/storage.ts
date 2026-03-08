@@ -225,3 +225,21 @@ export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
   // El historial se mantiene
 }
+
+export function extendSessionLocally(shortCode: string, newCreatedAt: string): void {
+  // Actualizar sesión activa si coincide
+  const state = getSessionState();
+  if (state.session?.shortCode === shortCode) {
+    state.session.createdAt = newCreatedAt;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+    syncToHistory(state);
+    return;
+  }
+  // Si no está activa, actualizar solo en historial
+  const entries = getHistory();
+  const entry = entries.find((e) => e.session.shortCode === shortCode);
+  if (entry) {
+    entry.session.createdAt = newCreatedAt;
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  }
+}

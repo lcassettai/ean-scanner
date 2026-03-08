@@ -51,6 +51,7 @@ export default function Scanner() {
   const [barcodeModal, setBarcodeModal] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSessionInfo, setShowSessionInfo] = useState(false);
   const syncingRef = useRef(false);
 
   const refresh = () => setState(getSessionState());
@@ -371,6 +372,17 @@ export default function Scanner() {
   ) : null;
 
   // ────────── Modal resultado ──────────
+  const handleShareCurrent = async () => {
+    if (!state.session?.shortCode || !state.session?.accessCode) return;
+    const joinUrl = `${window.location.origin}/unirme?codigo=${state.session.shortCode}`;
+    const text = `Quiero que te unas a mi sesión de escaneo.\nURL: ${joinUrl}\nClave: ${state.session.accessCode}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Unirse a sesión EAN', text }); } catch { /* cancelado */ }
+    } else {
+      copyToClipboard(text);
+    }
+  };
+
   const handleShare = async () => {
     if (!lastSync) return;
     const joinUrl = `${window.location.origin}/unirme?codigo=${lastSync.shortCode}`;
@@ -443,7 +455,7 @@ export default function Scanner() {
 
           <button onClick={handleShare} className="btn-outline w-full mb-3 flex items-center justify-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-            Compartir
+            Compartir sesión
           </button>
 
           <div className="flex gap-3">
@@ -701,6 +713,64 @@ export default function Scanner() {
         </div>
       )}
 
+      {/* Modal info de sesión */}
+      {showSessionInfo && session.shortCode && session.accessCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40" onClick={() => setShowSessionInfo(false)}>
+          <div className="card p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-base truncate pr-4">{session.name}</h2>
+              <button onClick={() => setShowSessionInfo(false)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="bg-primary-50 rounded-xl p-4 mb-4 space-y-3">
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1">Código de sesión</p>
+                <button
+                  onClick={() => copyToClipboard(session.shortCode!)}
+                  className="font-mono text-xl font-bold text-gray-900 tracking-widest hover:text-primary-600 transition-colors cursor-pointer"
+                >
+                  {session.shortCode}
+                </button>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1">Clave de acceso</p>
+                <button
+                  onClick={() => copyToClipboard(session.accessCode!)}
+                  className="font-mono text-3xl font-bold text-gray-900 tracking-widest hover:text-primary-600 transition-colors cursor-pointer"
+                >
+                  {session.accessCode}
+                </button>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium mb-1">URL de acceso</p>
+                <button
+                  onClick={() => copyToClipboard(`${window.location.origin}/i/${session.shortCode}`)}
+                  className="font-mono text-sm text-primary-700 break-all text-left w-full hover:text-primary-900 transition-colors cursor-pointer"
+                >
+                  {window.location.origin}/i/{session.shortCode}
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col items-center bg-gray-50 rounded-xl p-4 mb-4">
+              <QRCodeSVG
+                value={`${window.location.origin}/unirme?codigo=${session.shortCode}`}
+                size={130}
+                bgColor="#f9fafb"
+                fgColor="#1e293b"
+              />
+              <p className="text-xs text-gray-400 mt-2">Escanear para unirse</p>
+            </div>
+            <button onClick={handleShareCurrent} className="btn-outline w-full flex items-center justify-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+              Compartir sesión
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
@@ -715,6 +785,13 @@ export default function Scanner() {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {session.shortCode && (
+            <button onClick={() => setShowSessionInfo(true)} className="text-gray-400 hover:text-primary-500 p-1.5 transition-colors" title="Ver info de sesión">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+            </button>
+          )}
           <button onClick={handleOpenSettings} className="text-gray-400 hover:text-gray-600 p-1.5 transition-colors" title="Configurar datos por ítem">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

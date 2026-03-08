@@ -24,3 +24,7 @@ export class AddScansDto {
 export class JoinSessionDto {
   accessCode: string;
 }
+
+export class ExtendSessionDto {
+  accessCode: string;
+}
