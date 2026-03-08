@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import PwaPrompt from './components/PwaPrompt';
 import Home from './pages/Home';
 import NewSession from './pages/NewSession';
 import JoinSession from './pages/JoinSession';
@@ -9,6 +10,7 @@ import Scanner from './pages/Scanner';
 function App() {
   return (
     <BrowserRouter>
+      <PwaPrompt />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/nueva" element={<NewSession />} />
