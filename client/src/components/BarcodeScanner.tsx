@@ -82,15 +82,10 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
     setTimeout(() => setFocusPoint(null), 900);
 
     try {
+      // POI + continuous en una sola llamada: así Chrome Android lo aplica correctamente
       await track.applyConstraints({
         advanced: [{ pointOfInterest: { x, y }, focusMode: 'continuous' } as MediaTrackConstraintSet],
       });
-    } catch { /* ignore */ }
-
-    try {
-      await track.applyConstraints({ advanced: [{ focusMode: 'manual' } as MediaTrackConstraintSet] });
-      await new Promise<void>((r) => setTimeout(r, 80));
-      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] });
     } catch { /* ignore */ }
   };
 
@@ -160,12 +155,35 @@ export default function BarcodeScanner({ onDetected, active }: Props) {
           } catch { /* ignore */ }
         }
 
-        // Autofocus continuo
+        // Autofocus — forzar búsqueda desde distancia corta para productos cercanos
         if (capabilities.focusMode?.includes('continuous')) {
           try {
+            // 1. POI central + continuous juntos (un solo applyConstraints)
             await track.applyConstraints({
-              advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+              advanced: [{ pointOfInterest: { x: 0.5, y: 0.5 }, focusMode: 'continuous' } as MediaTrackConstraintSet],
             });
+            // 2. Intentar sembrar la distancia de enfoque con un valor cercano
+            //    antes de volver a continuo, para que el AF no parta desde infinito.
+            const extCap = capabilities as MediaTrackCapabilities & { focusDistance?: { min: number; max: number } };
+            if (extCap.focusDistance && capabilities.focusMode?.includes('manual')) {
+              const nearDist = Math.max(extCap.focusDistance.min ?? 0, 0.12); // ~12 cm
+              await track.applyConstraints({
+                advanced: [{ focusMode: 'manual', focusDistance: nearDist } as MediaTrackConstraintSet],
+              });
+              await new Promise<void>((r) => setTimeout(r, 200));
+              await track.applyConstraints({
+                advanced: [{ pointOfInterest: { x: 0.5, y: 0.5 }, focusMode: 'continuous' } as MediaTrackConstraintSet],
+              });
+            } else if (capabilities.focusMode?.includes('manual')) {
+              // Fallback sin focusDistance: manual breve → continuous
+              await track.applyConstraints({
+                advanced: [{ focusMode: 'manual' } as MediaTrackConstraintSet],
+              });
+              await new Promise<void>((r) => setTimeout(r, 150));
+              await track.applyConstraints({
+                advanced: [{ pointOfInterest: { x: 0.5, y: 0.5 }, focusMode: 'continuous' } as MediaTrackConstraintSet],
+              });
+            }
           } catch { /* ignore */ }
         }
 

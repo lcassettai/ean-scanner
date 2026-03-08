@@ -345,6 +345,17 @@ export default function Scanner() {
   ) : null;
 
   // ────────── Modal resultado ──────────
+  const handleShare = async () => {
+    if (!lastSync) return;
+    const joinUrl = `${window.location.origin}/unirme?codigo=${lastSync.shortCode}`;
+    const text = `Quiero que te unas a mi sesión de escaneo.\nURL: ${joinUrl}\nClave: ${lastSync.accessCode}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Unirse a sesión EAN', text }); } catch { /* cancelado */ }
+    } else {
+      copyToClipboard(text);
+    }
+  };
+
   if (showResult && lastSync) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -363,6 +374,26 @@ export default function Scanner() {
 
           <div className="bg-primary-50 rounded-xl p-4 mb-4 space-y-3">
             <div>
+              <p className="text-xs text-gray-500 font-medium mb-1">Código de sesión</p>
+              <button
+                onClick={() => copyToClipboard(lastSync.shortCode)}
+                className="font-mono text-xl font-bold text-gray-900 tracking-widest hover:text-primary-600 transition-colors cursor-pointer"
+                title="Copiar código de sesión"
+              >
+                {lastSync.shortCode}
+              </button>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-1">Clave de acceso</p>
+              <button
+                onClick={handleCopyCode}
+                className="font-mono text-3xl font-bold text-gray-900 tracking-widest hover:text-primary-600 transition-colors cursor-pointer"
+                title="Copiar clave"
+              >
+                {lastSync.accessCode}
+              </button>
+            </div>
+            <div>
               <p className="text-xs text-gray-500 font-medium mb-1">URL de acceso</p>
               <button
                 onClick={handleCopyUrl}
@@ -372,21 +403,11 @@ export default function Scanner() {
                 {window.location.origin}/i/{lastSync.shortCode}
               </button>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 font-medium mb-1">Código de acceso</p>
-              <button
-                onClick={handleCopyCode}
-                className="font-mono text-3xl font-bold text-gray-900 tracking-widest hover:text-primary-600 transition-colors cursor-pointer"
-                title="Copiar código"
-              >
-                {lastSync.accessCode}
-              </button>
-            </div>
           </div>
 
-          <button onClick={handleCopy} className="btn-outline w-full mb-3 flex items-center justify-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-            Copiar URL y código
+          <button onClick={handleShare} className="btn-outline w-full mb-3 flex items-center justify-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+            Compartir
           </button>
 
           <div className="flex gap-3">

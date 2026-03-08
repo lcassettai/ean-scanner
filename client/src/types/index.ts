@@ -44,3 +44,16 @@ export interface SyncResult {
   askPrice: boolean;
   totalScans: number;
 }
+
+export interface JoinResult {
+  shortCode: string;
+  accessCode: string;
+  name: string;
+  type: string | null;
+  askQuantity: boolean;
+  askInternalCode: boolean;
+  askProductName: boolean;
+  askPrice: boolean;
+  createdAt: string;
+  scans: ScanItem[];
+}

@@ -1,4 +1,4 @@
-import type { SessionMeta, SessionState, HistoryEntry, ScanItem } from '../types';
+import type { SessionMeta, SessionState, HistoryEntry, ScanItem, JoinResult } from '../types';
 
 const SESSION_KEY = 'ean_session';
 const HISTORY_KEY = 'ean_history';
@@ -121,6 +121,28 @@ export function resumeSession(entry: HistoryEntry): void {
     pendingDeletes: [],
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+}
+
+export function joinSession(result: JoinResult): void {
+  const state: SessionState = {
+    session: {
+      id: Date.now().toString(),
+      name: result.name,
+      type: result.type ?? 'other',
+      shortCode: result.shortCode,
+      accessCode: result.accessCode,
+      createdAt: result.createdAt,
+      askQuantity: result.askQuantity,
+      askInternalCode: result.askInternalCode,
+      askProductName: result.askProductName,
+      askPrice: result.askPrice,
+    },
+    pendingScans: [],
+    allScans: [],
+    pendingDeletes: [],
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  syncToHistory(state);
 }
 
 /** Retorna true si el EAN es nuevo, false si ya existía (duplicado) */

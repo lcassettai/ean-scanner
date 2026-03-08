@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { startSession, resumeSession, getHistory, deleteHistoryEntry } from '../services/storage';
+import { startSession, resumeSession, getHistory, deleteHistoryEntry, joinSession as storageJoinSession } from '../services/storage';
+import { joinSession as joinSessionApi } from '../services/api';
 import Toast from '../components/Toast';
 import type { HistoryEntry } from '../types';
 
@@ -44,6 +45,11 @@ export default function CreateSession() {
   const [viewingSession, setViewingSession] = useState<{ shortCode: string; accessCode: string; name: string } | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showJoin, setShowJoin] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinAccess, setJoinAccess] = useState('');
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     setHistory(getHistory());
@@ -91,6 +97,31 @@ export default function CreateSession() {
     );
   };
 
+  const handleShareSession = async () => {
+    if (!viewingSession) return;
+    const text = `Quiero que te unas a mi sesión de escaneo.\nURL: ${window.location.origin}\nCódigo: ${viewingSession.shortCode}\nClave: ${viewingSession.accessCode}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Unirse a sesión EAN', text }); } catch { /* cancelado */ }
+    } else {
+      copyToClipboard(text);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!joinCode.trim() || !joinAccess.trim()) return;
+    setJoining(true);
+    setJoinError(null);
+    try {
+      const result = await joinSessionApi(joinCode.trim(), joinAccess.trim());
+      storageJoinSession(result);
+      navigate('/scan');
+    } catch {
+      setJoinError('Código de sesión o clave incorrectos.');
+    } finally {
+      setJoining(false);
+    }
+  };
+
   return (
     <div className="min-h-screen px-4 py-10">
       <Toast show={showToast} />
@@ -128,10 +159,16 @@ export default function CreateSession() {
                 </button>
               </div>
             </div>
-            <button onClick={handleCopy} className="btn-outline w-full flex items-center justify-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-              Copiar URL y código
-            </button>
+            <div className="space-y-2">
+              <button onClick={handleCopy} className="btn-outline w-full flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                Copiar URL y código
+              </button>
+              <button onClick={handleShareSession} className="btn-outline w-full flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                Compartir sesión
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -170,7 +207,7 @@ export default function CreateSession() {
                 d="M4 6h1M4 10h1M4 14h1M4 18h1M8 6h1M8 10h1M8 14h1M8 18h1M13 6h3M13 10h3M13 14h3M13 18h3M18 6h2M18 10h2M18 14h2M18 18h2" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Escáner EAN</h1>
+          <h1 className="text-2xl font-bold text-gray-900">EAN Escáner </h1>
           <p className="text-gray-500 mt-1 text-sm">Creá una nueva sesión para comenzar</p>
         </div>
 
@@ -279,6 +316,82 @@ export default function CreateSession() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </button>
+        </div>
+
+        {/* Unirse a sesión existente */}
+        <div className="card mb-4">
+          <button
+            onClick={() => { setShowJoin((v) => !v); setJoinError(null); }}
+            className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold text-gray-700 hover:text-primary-600 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              Unirse a sesión existente
+            </span>
+            <svg
+              className={`w-4 h-4 transition-transform ${showJoin ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showJoin && (
+            <div className="px-5 pb-5 space-y-3">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Código de sesión</label>
+                  <input
+                    type="text"
+                    className="input-field text-sm font-mono tracking-widest uppercase"
+                    placeholder="a1b2c3"
+                    maxLength={6}
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toLowerCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                  />
+                </div>
+                <div className="w-28">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Clave de acceso</label>
+                  <input
+                    type="text"
+                    className="input-field text-sm font-mono tracking-widest text-center"
+                    placeholder="1234"
+                    maxLength={4}
+                    value={joinAccess}
+                    onChange={(e) => setJoinAccess(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                  />
+                </div>
+              </div>
+              {joinError && (
+                <p className="text-xs text-red-500 font-medium">{joinError}</p>
+              )}
+              <button
+                onClick={handleJoin}
+                disabled={joining || !joinCode.trim() || !joinAccess.trim()}
+                className="btn-primary w-full flex items-center justify-center gap-2 text-sm"
+              >
+                {joining ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Uniéndose...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                    Unirse
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Aviso 24h */}

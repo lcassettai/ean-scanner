@@ -20,3 +20,7 @@ export class CreateSessionDto {
 export class AddScansDto {
   scans: ScanItemDto[];
 }
+
+export class JoinSessionDto {
+  accessCode: string;
+}

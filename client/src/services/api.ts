@@ -1,4 +1,4 @@
-import type { ScanItem, SyncResult } from '../types';
+import type { ScanItem, SyncResult, JoinResult } from '../types';
 
 const BASE = '/api';
 
@@ -37,6 +37,16 @@ export async function deleteScans(shortCode: string, eans: string[]): Promise<vo
     body: JSON.stringify({ eans }),
   });
   if (!res.ok) throw new Error('Error al eliminar ítems');
+}
+
+export async function joinSession(shortCode: string, accessCode: string): Promise<JoinResult> {
+  const res = await fetch(`${BASE}/sessions/${shortCode}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessCode }),
+  });
+  if (!res.ok) throw new Error('Código incorrecto');
+  return res.json();
 }
 
 export function getCsvUrl(shortCode: string): string {
