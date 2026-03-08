@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateShortCode, generateAccessCode } from '../utils/short-url.util';
-import { AddScansDto, CreateSessionDto, ScanItemDto } from './dto/create-session.dto';
+import { AddScansDto, CreateSessionDto, ScanItemDto, UpdateScanDto } from './dto/create-session.dto';
 import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
@@ -85,7 +85,7 @@ export class SessionsService {
       include: { scans: true },
     });
 
-    return { shortCode: code, totalScans: updated!.scans.length };
+    return { shortCode: code, scans: updated!.scans };
   }
 
   async getSession(code: string) {
@@ -158,6 +158,26 @@ export class SessionsService {
     });
     if (!session || session.accessCode !== accessCode) return null;
     return session;
+  }
+
+  async updateScan(shortCode: string, dto: UpdateScanDto) {
+    const session = await this.prisma.session.findUnique({
+      where: { shortCode },
+      include: { scans: true },
+    });
+    if (!session || session.accessCode !== dto.accessCode) return null;
+    const scan = session.scans.find((s) => s.ean === dto.ean);
+    if (!scan) return null;
+    return this.prisma.scan.update({
+      where: { id: scan.id },
+      data: {
+        quantity:     dto.quantity     !== undefined ? dto.quantity     : scan.quantity,
+        internalCode: dto.internalCode !== undefined ? dto.internalCode : scan.internalCode,
+        productName:  dto.productName  !== undefined ? dto.productName  : scan.productName,
+        price:        dto.price        !== undefined ? dto.price        : scan.price,
+        observations: dto.observations !== undefined ? dto.observations : scan.observations,
+      },
+    });
   }
 
   async verifyAccess(code: string, accessCode: string) {

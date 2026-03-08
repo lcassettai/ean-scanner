@@ -233,6 +233,15 @@ export function clearPendingScans(): void {
   saveSessionState(state);
 }
 
+/** Reemplaza allScans con el estado actual del servidor y limpia pendientes */
+export function applyServerScans(serverScans: ScanItem[]): void {
+  const state = getSessionState();
+  state.allScans = serverScans;
+  state.pendingScans = [];
+  state.pendingDeletes = [];
+  saveSessionState(state);
+}
+
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
   // El historial se mantiene

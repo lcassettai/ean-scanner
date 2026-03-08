@@ -20,7 +20,7 @@ export async function createSession(
 export async function addScans(
   shortCode: string,
   scans: ScanItem[],
-): Promise<{ shortCode: string; totalScans: number }> {
+): Promise<{ shortCode: string; scans: ScanItem[] }> {
   const res = await fetch(`${BASE}/sessions/${shortCode}/scans`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -28,6 +28,20 @@ export async function addScans(
   });
   if (!res.ok) throw new Error('Error al sincronizar');
   return res.json();
+}
+
+export async function updateScan(
+  shortCode: string,
+  accessCode: string,
+  ean: string,
+  fields: { quantity?: number; internalCode?: string | null; productName?: string | null; price?: number | null; observations?: string | null },
+): Promise<void> {
+  const res = await fetch(`${BASE}/sessions/${shortCode}/scans`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessCode, ean, ...fields }),
+  });
+  if (!res.ok) throw new Error('Error al guardar');
 }
 
 export async function deleteScans(shortCode: string, eans: string[]): Promise<void> {

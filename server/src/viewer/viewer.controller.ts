@@ -235,6 +235,67 @@ export class ViewerController {
     </div>
   </div>
 
+  <!-- Modal editar ítem -->
+  <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50" onclick="closeEditModal()">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="font-bold text-gray-900 text-base">Editar ítem</h3>
+        <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="editEanDisplay" class="text-xs font-mono text-gray-400 mb-4"></div>
+      <div class="space-y-3 mb-5">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Cantidad</label>
+          <input id="editQty" type="number" min="1" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Código interno</label>
+          <input id="editInternalCode" type="text" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Nombre de producto</label>
+          <input id="editProductName" type="text" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Precio</label>
+          <input id="editPrice" type="number" step="0.01" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Observaciones</label>
+          <textarea id="editObservations" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-400 resize-none"></textarea>
+        </div>
+      </div>
+      <div id="editError" class="hidden text-red-500 text-xs mb-3 text-center">Error al guardar. Intentá de nuevo.</div>
+      <div class="flex gap-3">
+        <button onclick="closeEditModal()" class="flex-1 text-sm py-2.5 border-2 border-gray-200 text-gray-600 hover:border-gray-300 rounded-xl font-semibold transition-colors">Cancelar</button>
+        <button onclick="saveEditModal()" id="editSaveBtn" class="flex-1 text-sm py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-colors">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal confirmar eliminación -->
+  <div id="deleteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50" onclick="closeDeleteModal()">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onclick="event.stopPropagation()">
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+        </div>
+        <h3 class="font-bold text-gray-900 text-base">Eliminar ítem</h3>
+        <p class="text-gray-500 text-sm mt-1">¿Confirmás la eliminación de <span id="deleteEanDisplay" class="font-mono font-semibold text-gray-800"></span>?</p>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="closeDeleteModal()" class="flex-1 text-sm py-2.5 border-2 border-gray-200 text-gray-600 hover:border-gray-300 rounded-xl font-semibold transition-colors">Cancelar</button>
+        <button onclick="executeDeleteScan()" class="flex-1 text-sm py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const CODE = '${code}';
     const TYPE_LABELS = {
@@ -245,6 +306,9 @@ export class ViewerController {
     };
     let storedAccessCode = null;
     let pollingTimer = null;
+    let currentScans = [];
+    let editingEan = null;
+    let deletingEan = null;
 
     // Restaurar sesión previa
     const cached = sessionStorage.getItem('viewer_' + CODE);
@@ -320,6 +384,7 @@ export class ViewerController {
       document.getElementById('sessionDate').textContent = new Date(data.createdAt).toLocaleDateString('es-AR', {
         day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
       });
+      currentScans = data.scans;
       document.getElementById('scanCount').textContent = data.scans.length + ' ítems';
       document.getElementById('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
@@ -333,12 +398,26 @@ export class ViewerController {
           <td class="px-4 py-3 text-center font-semibold text-primary-700">\${s.quantity}</td>
           <td class="px-4 py-3 text-gray-600 max-w-xs">\${s.observations || '—'}</td>
           <td class="px-4 py-3 text-center">
-            <button onclick="openBarcodeModal('\${s.ean.replace(/'/g, "\\\\'")}')" title="Ver código de barras"
-              class="text-gray-400 hover:text-primary-600 transition-colors">
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h3v16h-3V4z"/>
-              </svg>
-            </button>
+            <div class="flex items-center justify-center gap-1">
+              <button onclick="openBarcodeModal('\${s.ean.replace(/'/g, "\\\\'")}')" title="Ver código de barras"
+                class="text-gray-400 hover:text-primary-600 transition-colors p-1">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h3v16h-3V4z"/>
+                </svg>
+              </button>
+              <button onclick="openEditModal('\${s.ean.replace(/'/g, "\\\\'")}')" title="Editar"
+                class="text-gray-400 hover:text-blue-600 transition-colors p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button onclick="confirmDeleteScan('\${s.ean.replace(/'/g, "\\\\'")}')" title="Eliminar"
+                class="text-gray-400 hover:text-red-600 transition-colors p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
           </td>
         </tr>
       \`).join('');
@@ -376,6 +455,86 @@ export class ViewerController {
 
     function closeCsvModal() {
       document.getElementById('csvModal').classList.add('hidden');
+    }
+
+    function openEditModal(ean) {
+      const scan = currentScans.find(s => s.ean === ean);
+      if (!scan) return;
+      editingEan = ean;
+      document.getElementById('editEanDisplay').textContent = 'EAN: ' + ean;
+      document.getElementById('editQty').value = scan.quantity;
+      document.getElementById('editInternalCode').value = scan.internalCode || '';
+      document.getElementById('editProductName').value = scan.productName || '';
+      document.getElementById('editPrice').value = scan.price != null ? scan.price : '';
+      document.getElementById('editObservations').value = scan.observations || '';
+      document.getElementById('editError').classList.add('hidden');
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+      editingEan = null;
+    }
+
+    async function saveEditModal() {
+      if (!editingEan) return;
+      const qty = parseInt(document.getElementById('editQty').value, 10);
+      if (isNaN(qty) || qty < 1) return;
+      const btn = document.getElementById('editSaveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+      document.getElementById('editError').classList.add('hidden');
+      try {
+        const priceVal = document.getElementById('editPrice').value;
+        const res = await fetch('/api/sessions/' + CODE + '/scans', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accessCode: storedAccessCode,
+            ean: editingEan,
+            quantity: qty,
+            internalCode: document.getElementById('editInternalCode').value.trim() || null,
+            productName: document.getElementById('editProductName').value.trim() || null,
+            price: priceVal !== '' ? parseFloat(priceVal) : null,
+            observations: document.getElementById('editObservations').value.trim() || null,
+          }),
+        });
+        if (!res.ok) throw new Error('Error');
+        closeEditModal();
+        await fetchInventory();
+      } catch {
+        document.getElementById('editError').classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar';
+      }
+    }
+
+    function confirmDeleteScan(ean) {
+      deletingEan = ean;
+      document.getElementById('deleteEanDisplay').textContent = ean;
+      document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').classList.add('hidden');
+      deletingEan = null;
+    }
+
+    async function executeDeleteScan() {
+      if (!deletingEan) return;
+      try {
+        const res = await fetch('/api/sessions/' + CODE + '/scans', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eans: [deletingEan] }),
+        });
+        if (!res.ok) throw new Error('Error');
+        closeDeleteModal();
+        await fetchInventory();
+      } catch {
+        closeDeleteModal();
+      }
     }
 
     function updateCsvBtn() {

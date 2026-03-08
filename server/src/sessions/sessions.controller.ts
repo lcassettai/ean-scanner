@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -11,7 +12,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { SessionsService } from './sessions.service';
-import { AddScansDto, CreateSessionDto, JoinSessionDto, ExtendSessionDto } from './dto/create-session.dto';
+import { AddScansDto, CreateSessionDto, JoinSessionDto, ExtendSessionDto, UpdateScanDto } from './dto/create-session.dto';
 
 @Controller('api/sessions')
 export class SessionsController {
@@ -47,6 +48,15 @@ export class SessionsController {
   @Post(':code/scans')
   addScans(@Param('code') code: string, @Body() dto: AddScansDto) {
     return this.sessionsService.addScans(code, dto);
+  }
+
+  // Editar scan individual desde viewer: máximo 30 por minuto por IP
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Patch(':code/scans')
+  async updateScan(@Param('code') code: string, @Body() dto: UpdateScanDto, @Res() res: Response) {
+    const result = await this.sessionsService.updateScan(code, dto);
+    if (!result) return res.status(401).json({ error: 'Acceso incorrecto o ítem no encontrado' });
+    return res.json(result);
   }
 
   // Eliminar scans: máximo 10 por minuto por IP

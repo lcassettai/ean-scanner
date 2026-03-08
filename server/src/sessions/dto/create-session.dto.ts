@@ -28,3 +28,13 @@ export class JoinSessionDto {
 export class ExtendSessionDto {
   accessCode: string;
 }
+
+export class UpdateScanDto {
+  accessCode: string;
+  ean: string;
+  quantity?: number;
+  internalCode?: string | null;
+  productName?: string | null;
+  price?: number | null;
+  observations?: string | null;
+}

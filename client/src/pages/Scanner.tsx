@@ -9,6 +9,7 @@ import {
   addScan,
   removeScan,
   clearPendingScans,
+  applyServerScans,
   updateSessionCodes,
   updateQuantity,
   updateScanDetails,
@@ -181,9 +182,11 @@ export default function Scanner() {
           await deleteScans(current.session.shortCode, current.pendingDeletes);
         }
         if (current.pendingScans.length > 0) {
-          await addScans(current.session.shortCode, current.pendingScans);
+          const result = await addScans(current.session.shortCode, current.pendingScans);
+          applyServerScans(result.scans);
+        } else {
+          clearPendingScans();
         }
-        clearPendingScans();
         refresh();
         setToastMessage('Datos sincronizados');
         setShowToast(true);
