@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JsBarcode from 'jsbarcode';
+import { QRCodeSVG } from 'qrcode.react';
 import BarcodeScanner from '../components/BarcodeScanner';
 import Toast from '../components/Toast';
 import {
@@ -49,6 +50,8 @@ export default function Scanner() {
   });
   const [barcodeModal, setBarcodeModal] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const syncingRef = useRef(false);
 
   const refresh = () => setState(getSessionState());
 
@@ -145,8 +148,10 @@ export default function Scanner() {
   const handleSync = async () => {
     const current = getSessionState();
     if (!current.session || (current.pendingScans.length === 0 && current.pendingDeletes.length === 0)) return;
+    if (syncingRef.current) return;
 
     setSyncing(true);
+    syncingRef.current = true;
     setSyncError(null);
 
     try {
@@ -187,8 +192,24 @@ export default function Scanner() {
       setSyncError(e instanceof Error ? e.message : 'Error de red');
     } finally {
       setSyncing(false);
+      syncingRef.current = false;
     }
   };
+
+  // Auto-sync cada 60 s si hay pendientes y la sesión ya fue sincronizada
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const current = getSessionState();
+      if (
+        !syncingRef.current &&
+        current.session?.shortCode &&
+        (current.pendingScans.length > 0 || current.pendingDeletes.length > 0)
+      ) {
+        handleSync();
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOpenSettings = () => {
     const current = getSessionState();
@@ -242,15 +263,20 @@ export default function Scanner() {
     copyToClipboard(lastSync.accessCode);
   };
 
-  const handleCopy = () => {
-    if (!lastSync) return;
-    copyToClipboard(
-      `URL: ${window.location.origin}/i/${lastSync.shortCode}\nCódigo de acceso: ${lastSync.accessCode}`
-    );
-  };
 
   const { session, pendingScans, pendingDeletes = [] } = state;
   if (!session) return null;
+
+  const totalUnits = state.allScans.reduce((sum, s) => sum + s.quantity, 0);
+  const q = searchQuery.trim().toLowerCase();
+  const displayedScans = q
+    ? state.allScans.filter(
+        (s) =>
+          s.ean.includes(q) ||
+          s.productName?.toLowerCase().includes(q) ||
+          s.internalCode?.toLowerCase().includes(q),
+      )
+    : state.allScans;
 
   // ────────── Componente display de código de barras ──────────
   function BarcodeDisplay({ value }: { value: string }) {
@@ -403,6 +429,16 @@ export default function Scanner() {
                 {window.location.origin}/i/{lastSync.shortCode}
               </button>
             </div>
+          </div>
+
+          <div className="flex flex-col items-center bg-gray-50 rounded-xl p-4 mb-4">
+            <QRCodeSVG
+              value={`${window.location.origin}/unirme?codigo=${lastSync.shortCode}`}
+              size={140}
+              bgColor="#f9fafb"
+              fgColor="#1e293b"
+            />
+            <p className="text-xs text-gray-400 mt-2">Escanear para unirse</p>
           </div>
 
           <button onClick={handleShare} className="btn-outline w-full mb-3 flex items-center justify-center gap-2">
@@ -744,14 +780,29 @@ export default function Scanner() {
         <div className="card overflow-hidden flex-1">
           <div className="px-4 py-2.5 border-b border-primary-50 flex items-center justify-between">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Ítems escaneados ({state.allScans.length})
+              {state.allScans.length} ítem{state.allScans.length !== 1 ? 's' : ''}
+              <span className="font-normal text-gray-400"> · {totalUnits} unid.</span>
             </p>
             {pendingScans.length > 0 && (
               <span className="text-xs text-amber-600 font-medium">{pendingScans.length} sin sync</span>
             )}
           </div>
+          {state.allScans.length >= 5 && (
+            <div className="px-3 py-2 border-b border-primary-50">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por EAN, nombre o código interno..."
+                className="w-full text-xs px-3 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:border-primary-400 bg-gray-50"
+              />
+            </div>
+          )}
           <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-            {[...state.allScans].reverse().map((item: ScanItem) => {
+            {displayedScans.length === 0 && searchQuery ? (
+              <p className="text-xs text-gray-400 text-center py-6">Sin resultados para "{searchQuery}"</p>
+            ) : (
+            [...displayedScans].reverse().map((item: ScanItem) => {
               const isPending = pendingScans.some((p) => p.ean === item.ean);
               const isEditingThis = editingQty?.ean === item.ean;
               return (
@@ -814,7 +865,8 @@ export default function Scanner() {
                   </div>
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { resumeSession, getHistory, deleteHistoryEntry } from '../services/storage';
 import Toast from '../components/Toast';
 import type { HistoryEntry } from '../types';
@@ -127,6 +128,15 @@ export default function History() {
                   {window.location.origin}/i/{viewingSession.shortCode}
                 </button>
               </div>
+            </div>
+            <div className="flex flex-col items-center bg-gray-50 rounded-xl p-4 mb-4">
+              <QRCodeSVG
+                value={`${window.location.origin}/unirme?codigo=${viewingSession.shortCode}`}
+                size={130}
+                bgColor="#f9fafb"
+                fgColor="#1e293b"
+              />
+              <p className="text-xs text-gray-400 mt-2">Escanear para unirse</p>
             </div>
             <div className="space-y-2">
               <button onClick={handleCopy} className="btn-outline w-full flex items-center justify-center gap-2">
