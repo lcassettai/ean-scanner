@@ -41,6 +41,7 @@ export default function CreateSession() {
   const [askInternalCode, setAskInternalCode] = useState(false);
   const [askProductName, setAskProductName] = useState(false);
   const [askPrice, setAskPrice] = useState(false);
+  const [askModule, setAskModule] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [viewingSession, setViewingSession] = useState<{ shortCode: string; accessCode: string; name: string } | null>(null);
   const [showToast, setShowToast] = useState(false);
@@ -59,7 +60,7 @@ export default function CreateSession() {
     if (!name.trim()) return;
     if (type === 'other' && !customType.trim()) return;
     const resolvedType = type === 'other' ? customType.trim() : type;
-    startSession(name.trim(), resolvedType, { askQuantity, askInternalCode, askProductName, askPrice });
+    startSession(name.trim(), resolvedType, { askQuantity, askInternalCode, askProductName, askPrice, askModule });
     navigate('/scan');
   };
 
@@ -290,6 +291,7 @@ export default function CreateSession() {
                 { key: 'internalCode' as const, label: 'Código interno', state: askInternalCode, setter: setAskInternalCode },
                 { key: 'productName'  as const, label: 'Nombre de producto', state: askProductName, setter: setAskProductName },
                 { key: 'price'        as const, label: 'Precio', state: askPrice, setter: setAskPrice },
+                { key: 'module'       as const, label: 'Módulo', state: askModule, setter: setAskModule },
               ].map(({ key, label, state, setter }) => (
                 <label key={key} className="flex items-start gap-3 cursor-pointer select-none">
                   <input

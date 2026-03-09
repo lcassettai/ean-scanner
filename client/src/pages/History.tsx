@@ -80,7 +80,7 @@ export default function History() {
   const [viewingItems, setViewingItems] = useState<HistoryEntry | null>(null);
   const [itemsFilter, setItemsFilter] = useState('');
   const [csvFields, setCsvFields] = useState<Record<CsvFieldKey, boolean>>({
-    ean: true, quantity: true, internalCode: false, productName: false, price: false, observations: false,
+    ean: true, quantity: true, internalCode: false, productName: false, price: false, observations: false, module: false,
   });
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
