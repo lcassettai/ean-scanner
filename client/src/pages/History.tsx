@@ -177,7 +177,13 @@ export default function History() {
 
     if (entry.session.shortCode) {
       const params = new URLSearchParams({ fields: selectedKeys.join(',') });
-      window.open(`/api/sessions/${entry.session.shortCode}/export?${params}`, '_blank');
+      const url = `/api/sessions/${entry.session.shortCode}/export?${params}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${sessionName}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } else {
       const csv = buildLocalCsv(entry.allScans, csvFields);
       downloadBlob(csv, `${sessionName}.csv`);
