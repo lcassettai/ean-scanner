@@ -72,6 +72,7 @@ export class SessionsController {
   }
 
   @Get(':code/export')
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   async exportCsv(
     @Param('code') code: string,
     @Query('fields') fields: string | undefined,
