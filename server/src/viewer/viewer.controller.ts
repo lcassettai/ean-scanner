@@ -203,7 +203,7 @@ export class ViewerController {
         </button>
       </div>
       <p class="text-xs text-gray-400 mb-3">Seleccioná las columnas a incluir</p>
-      <div class="space-y-2 mb-5">
+      <div class="space-y-2 mb-4">
         <label class="flex items-center gap-3 cursor-pointer select-none">
           <input type="checkbox" id="csv_ean" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
           <span class="text-sm font-medium text-gray-700">Código EAN</span>
@@ -233,6 +233,10 @@ export class ViewerController {
           <span class="text-sm font-medium text-gray-700">Módulo</span>
         </label>
       </div>
+      <label class="flex items-center gap-3 cursor-pointer select-none mb-4 pt-1 border-t border-gray-100">
+        <input type="checkbox" id="csv_excelCompat" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+        <span class="text-xs text-gray-600">Compatibilidad con Excel (preservar ceros iniciales)</span>
+      </label>
       <div class="flex gap-3">
         <button onclick="closeCsvModal()" class="flex-1 text-sm py-2.5 border-2 border-gray-200 text-gray-600 hover:border-gray-300 rounded-xl font-semibold transition-colors">
           Cancelar
@@ -485,6 +489,7 @@ export class ViewerController {
       ['ean','quantity','internalCode','productName','price','observations','module'].forEach(f => {
         document.getElementById('csv_' + f).checked = false;
       });
+      document.getElementById('csv_excelCompat').checked = false;
       updateCsvBtn();
       document.getElementById('csvModal').classList.remove('hidden');
     }
@@ -583,7 +588,10 @@ export class ViewerController {
         btn.href = '#';
         btn.className = 'flex-1 text-sm py-2.5 flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors bg-gray-100 text-gray-400 pointer-events-none';
       } else {
-        btn.href = '/api/sessions/${code}/export?fields=' + fields.join(',');
+        const excelCompat = document.getElementById('csv_excelCompat').checked;
+        let url = '/api/sessions/${code}/export?fields=' + fields.join(',');
+        if (excelCompat) url += '&excelCompat=1';
+        btn.href = url;
         btn.className = 'flex-1 text-sm py-2.5 flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors bg-green-500 hover:bg-green-600 text-white';
       }
     }

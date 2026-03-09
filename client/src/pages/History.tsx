@@ -48,12 +48,15 @@ const FIELD_MAP: Record<CsvFieldKey, { header: string; getter: (i: ScanItem) => 
   module:       { header: 'Modulo',         getter: (i) => i.module ?? '' },
 };
 
-function buildLocalCsv(items: ScanItem[], fields: Record<CsvFieldKey, boolean>): string {
+function buildLocalCsv(items: ScanItem[], fields: Record<CsvFieldKey, boolean>, excelCompat: boolean): string {
   const selected = CSV_FIELDS.filter((f) => fields[f.key]).map((f) => FIELD_MAP[f.key]);
   const escape = (v: string) => (v.includes(',') || v.includes('"') || v.includes('\n'))
     ? `"${v.replace(/"/g, '""')}"` : v;
   const header = selected.map((f) => f.header).join(',');
-  const rows = items.map((item) => selected.map((f) => escape(f.getter(item))).join(','));
+  const rows = items.map((item) => selected.map((f) => {
+    const value = f.header === 'EAN' && excelCompat ? '\t' + f.getter(item) : f.getter(item);
+    return escape(value);
+  }).join(','));
   return '\uFEFF' + [header, ...rows].join('\r\n');
 }
 
@@ -82,6 +85,7 @@ export default function History() {
   const [csvFields, setCsvFields] = useState<Record<CsvFieldKey, boolean>>({
     ean: true, quantity: true, internalCode: false, productName: false, price: false, observations: false, module: false,
   });
+  const [excelCompat, setExcelCompat] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -177,6 +181,7 @@ export default function History() {
 
     if (entry.session.shortCode) {
       const params = new URLSearchParams({ fields: selectedKeys.join(',') });
+      if (excelCompat) params.set('excelCompat', '1');
       const url = `/api/sessions/${entry.session.shortCode}/export?${params}`;
       const a = document.createElement('a');
       a.href = url;
@@ -185,7 +190,7 @@ export default function History() {
       a.click();
       document.body.removeChild(a);
     } else {
-      const csv = buildLocalCsv(entry.allScans, csvFields);
+      const csv = buildLocalCsv(entry.allScans, csvFields, excelCompat);
       downloadBlob(csv, `${sessionName}.csv`);
     }
   };
@@ -390,6 +395,15 @@ export default function History() {
                   </label>
                 ))}
               </div>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none mb-3">
+                <input
+                  type="checkbox"
+                  checked={excelCompat}
+                  onChange={() => setExcelCompat((v) => !v)}
+                  className="w-3.5 h-3.5 accent-primary-500"
+                />
+                <span className="text-xs text-gray-600">Compatibilidad con Excel (preservar ceros iniciales)</span>
+              </label>
               <button
                 onClick={handleExportCsv}
                 disabled={viewingItems.allScans.length === 0}

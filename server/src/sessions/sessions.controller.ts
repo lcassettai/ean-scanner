@@ -75,10 +75,11 @@ export class SessionsController {
   async exportCsv(
     @Param('code') code: string,
     @Query('fields') fields: string | undefined,
+    @Query('excelCompat') excelCompat: string | undefined,
     @Res() res: Response,
   ) {
     const selectedFields = fields ? fields.split(',').map((f) => f.trim()) : undefined;
-    const { csv, sessionName } = await this.sessionsService.exportCsv(code, selectedFields);
+    const { csv, sessionName } = await this.sessionsService.exportCsv(code, selectedFields, excelCompat === '1');
     const safeName = sessionName.replace(/[/\\:*?"<>|]/g, '_').trim();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}.csv`);

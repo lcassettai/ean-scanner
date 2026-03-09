@@ -102,11 +102,11 @@ export class SessionsService {
     return session;
   }
 
-  async exportCsv(code: string, fields?: string[]): Promise<{ csv: string; sessionName: string }> {
+  async exportCsv(code: string, fields?: string[], excelCompat = false): Promise<{ csv: string; sessionName: string }> {
     const session = await this.getSession(code);
 
     const all = {
-      EAN:            (s: typeof session.scans[0]) => s.ean,
+      EAN:            (s: typeof session.scans[0]) => excelCompat ? '\t' + s.ean : s.ean,
       Cantidad:       (s: typeof session.scans[0]) => s.quantity,
       CodigoInterno:  (s: typeof session.scans[0]) => s.internalCode ?? '',
       NombreProducto: (s: typeof session.scans[0]) => s.productName  ?? '',
