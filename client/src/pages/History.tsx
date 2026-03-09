@@ -54,7 +54,7 @@ function buildLocalCsv(items: ScanItem[], fields: Record<CsvFieldKey, boolean>, 
     ? `"${v.replace(/"/g, '""')}"` : v;
   const header = selected.map((f) => f.header).join(',');
   const rows = items.map((item) => selected.map((f) => {
-    const value = f.header === 'EAN' && excelCompat ? '\t' + f.getter(item) : f.getter(item);
+    const value = f.header === 'EAN' && excelCompat ? `="${f.getter(item)}"` : f.getter(item);
     return escape(value);
   }).join(','));
   return '\uFEFF' + [header, ...rows].join('\r\n');

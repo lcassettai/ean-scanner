@@ -106,7 +106,7 @@ export class SessionsService {
     const session = await this.getSession(code);
 
     const all = {
-      EAN:            (s: typeof session.scans[0]) => excelCompat ? '\t' + s.ean : s.ean,
+      EAN:            (s: typeof session.scans[0]) => excelCompat ? `="${s.ean}"` : s.ean,
       Cantidad:       (s: typeof session.scans[0]) => s.quantity,
       CodigoInterno:  (s: typeof session.scans[0]) => s.internalCode ?? '',
       NombreProducto: (s: typeof session.scans[0]) => s.productName  ?? '',
