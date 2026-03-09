@@ -18,6 +18,7 @@ model Session {
   askInternalCode   Boolean  @default(false)
   askProductName    Boolean  @default(false)
   askPrice          Boolean  @default(false)
+  askModule         Boolean  @default(false)
   createdAt         DateTime @default(now())
   scans             Scan[]
 }
@@ -30,6 +31,7 @@ model Scan {
   productName   String?
   price         Float?
   observations  String?
+  module        String?
   scannedAt     DateTime @default(now())
   session       Session  @relation(fields: [sessionId], references: [id])
   sessionId     Int

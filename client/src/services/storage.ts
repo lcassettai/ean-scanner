@@ -91,7 +91,7 @@ function saveSessionState(state: SessionState): void {
 export function startSession(
   name: string,
   type: string,
-  flags: { askQuantity: boolean; askInternalCode: boolean; askProductName: boolean; askPrice: boolean },
+  flags: { askQuantity: boolean; askInternalCode: boolean; askProductName: boolean; askPrice: boolean; askModule: boolean },
 ): void {
   const state: SessionState = {
     session: {
@@ -105,6 +105,7 @@ export function startSession(
       askInternalCode: flags.askInternalCode,
       askProductName: flags.askProductName,
       askPrice: flags.askPrice,
+      askModule: flags.askModule,
     },
     pendingScans: [],
     allScans: [],
@@ -136,6 +137,7 @@ function buildSessionStateFromResult(result: JoinResult, allScans: SessionState[
       askInternalCode: result.askInternalCode,
       askProductName: result.askProductName,
       askPrice: result.askPrice,
+      askModule: result.askModule ?? false,
     },
     pendingScans: [],
     allScans,
@@ -202,6 +204,7 @@ export interface ScanDetails {
   productName?: string;
   price?: number;
   observations?: string;
+  module?: string;
 }
 
 export function updateScanDetails(ean: string, details: ScanDetails): void {

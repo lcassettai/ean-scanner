@@ -40,14 +40,14 @@ export default function Scanner() {
   const [blinkingEan, setBlinkingEan] = useState<string | null>(null);
   const [scanModal, setScanModal] = useState<{ ean: string; currentQty: number; showAll: boolean } | null>(null);
   const [modalFields, setModalFields] = useState<{
-    quantity: string; internalCode: string; productName: string; price: string; observations: string;
-  }>({ quantity: '1', internalCode: '', productName: '', price: '', observations: '' });
+    quantity: string; internalCode: string; productName: string; price: string; observations: string; module: string;
+  }>({ quantity: '1', internalCode: '', productName: '', price: '', observations: '', module: '' });
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsFlags, setSettingsFlags] = useState({ askQuantity: false, askInternalCode: false, askProductName: false, askPrice: false });
+  const [settingsFlags, setSettingsFlags] = useState({ askQuantity: false, askInternalCode: false, askProductName: false, askPrice: false, askModule: false });
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [csvFields, setCsvFields] = useState({
-    ean: false, quantity: false, internalCode: false, productName: false, price: false, observations: false,
+    ean: false, quantity: false, internalCode: false, productName: false, price: false, observations: false, module: false,
   });
   const [barcodeModal, setBarcodeModal] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -79,6 +79,7 @@ export default function Scanner() {
       productName:  existing?.productName  ?? '',
       price:        existing?.price != null ? String(existing.price) : '',
       observations: existing?.observations ?? '',
+      module:       existing?.module ?? '',
     });
   }, []);
 
@@ -87,7 +88,7 @@ export default function Scanner() {
     if (!isNew) triggerBlink(ean);
     refresh();
     const current = getSessionState();
-    const anyFlag = !!(current.session?.askQuantity || current.session?.askInternalCode || current.session?.askProductName || current.session?.askPrice);
+    const anyFlag = !!(current.session?.askQuantity || current.session?.askInternalCode || current.session?.askProductName || current.session?.askPrice || current.session?.askModule);
     if (anyFlag) openScanModal(ean);
   }, [openScanModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -99,7 +100,7 @@ export default function Scanner() {
     setManualEan('');
     refresh();
     const current = getSessionState();
-    const anyFlag = !!(current.session?.askQuantity || current.session?.askInternalCode || current.session?.askProductName || current.session?.askPrice);
+    const anyFlag = !!(current.session?.askQuantity || current.session?.askInternalCode || current.session?.askProductName || current.session?.askPrice || current.session?.askModule);
     if (anyFlag) openScanModal(ean);
   };
 
@@ -112,6 +113,7 @@ export default function Scanner() {
       productName:  modalFields.productName.trim()  || undefined,
       price:        modalFields.price !== '' ? parseFloat(modalFields.price) : undefined,
       observations: modalFields.observations.trim() || undefined,
+      module:       modalFields.module.trim() || undefined,
     });
     setScanModal(null);
     refresh();
@@ -158,12 +160,12 @@ export default function Scanner() {
 
     try {
       if (!current.session.shortCode) {
-        const { askQuantity, askInternalCode, askProductName, askPrice } = current.session;
+        const { askQuantity, askInternalCode, askProductName, askPrice, askModule } = current.session;
         const result = await createSession(
           current.session.name,
           current.session.type,
           current.pendingScans,
-          { askQuantity, askInternalCode, askProductName, askPrice },
+          { askQuantity, askInternalCode, askProductName, askPrice, askModule },
         );
         updateSessionCodes({
           shortCode: result.shortCode,
@@ -172,6 +174,7 @@ export default function Scanner() {
           askInternalCode: result.askInternalCode,
           askProductName: result.askProductName,
           askPrice: result.askPrice,
+          askModule: result.askModule,
         });
         clearPendingScans();
         setLastSync({ shortCode: result.shortCode, accessCode: result.accessCode });
@@ -222,6 +225,7 @@ export default function Scanner() {
       askInternalCode: !!current.session?.askInternalCode,
       askProductName:  !!current.session?.askProductName,
       askPrice:        !!current.session?.askPrice,
+      askModule:       !!current.session?.askModule,
     });
     setShowSettings(true);
   };
@@ -340,6 +344,7 @@ export default function Scanner() {
             { key: 'productName'  as const, label: 'Nombre de producto' },
             { key: 'price'        as const, label: 'Precio' },
             { key: 'observations' as const, label: 'Observaciones' },
+            { key: 'module'       as const, label: 'Módulo' },
           ]).map(({ key, label }) => (
             <label key={key} className="flex items-center gap-3 cursor-pointer select-none">
               <input
@@ -466,7 +471,7 @@ export default function Scanner() {
               Continuar escaneando
             </button>
             <button
-              onClick={() => { setCsvFields({ ean: false, quantity: false, internalCode: false, productName: false, price: false, observations: false }); setShowCsvModal(true); }}
+              onClick={() => { setCsvFields({ ean: false, quantity: false, internalCode: false, productName: false, price: false, observations: false, module: false }); setShowCsvModal(true); }}
               className="btn-outline text-sm py-2.5 px-4 flex items-center gap-1"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
@@ -545,6 +550,7 @@ export default function Scanner() {
                 { key: 'askInternalCode' as const, label: 'Código interno' },
                 { key: 'askProductName'  as const, label: 'Nombre de producto' },
                 { key: 'askPrice'        as const, label: 'Precio' },
+                { key: 'askModule'       as const, label: 'Módulo' },
               ] as const).map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-3 cursor-pointer select-none">
                   <input
@@ -679,6 +685,19 @@ export default function Scanner() {
                     value={modalFields.price}
                     onChange={(e) => setModalFields((f) => ({ ...f, price: e.target.value }))}
                     placeholder="0.00"
+                    className="input-field py-2 text-sm"
+                  />
+                </div>
+              )}
+
+              {(scanModal.showAll || session.askModule) && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Módulo</label>
+                  <input
+                    type="text"
+                    value={modalFields.module}
+                    onChange={(e) => setModalFields((f) => ({ ...f, module: e.target.value }))}
+                    placeholder="Ej: A1, Pasillo 3..."
                     className="input-field py-2 text-sm"
                   />
                 </div>
@@ -896,9 +915,9 @@ export default function Scanner() {
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isPending ? 'bg-amber-400' : 'bg-primary-400'}`} />
                     <div className="min-w-0">
                       <p className="font-mono text-sm text-gray-800 truncate">{item.ean}</p>
-                      {(item.internalCode || item.productName || item.price != null) && (
+                      {(item.internalCode || item.productName || item.price != null || item.module) && (
                         <p className="text-xs text-gray-400 truncate">
-                          {[item.internalCode, item.productName, item.price != null ? `€${item.price}` : null]
+                          {[item.module, item.internalCode, item.productName, item.price != null ? `€${item.price}` : null]
                             .filter(Boolean).join(' · ')}
                         </p>
                       )}

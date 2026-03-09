@@ -5,6 +5,7 @@ export class ScanItemDto {
   productName?: string;
   price?: number;
   observations?: string;
+  module?: string;
 }
 
 export class CreateSessionDto {
@@ -14,6 +15,7 @@ export class CreateSessionDto {
   askInternalCode?: boolean;
   askProductName?: boolean;
   askPrice?: boolean;
+  askModule?: boolean;
   scans: ScanItemDto[];
 }
 
@@ -37,4 +39,5 @@ export class UpdateScanDto {
   productName?: string | null;
   price?: number | null;
   observations?: string | null;
+  module?: string | null;
 }

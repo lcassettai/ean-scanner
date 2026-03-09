@@ -5,6 +5,7 @@ export interface ScanItem {
   productName?: string;
   price?: number;
   observations?: string;
+  module?: string;
 }
 
 export interface SessionMeta {
@@ -18,6 +19,7 @@ export interface SessionMeta {
   askInternalCode: boolean;
   askProductName: boolean;
   askPrice: boolean;
+  askModule: boolean;
 }
 
 export interface SessionState {
@@ -42,6 +44,7 @@ export interface SyncResult {
   askInternalCode: boolean;
   askProductName: boolean;
   askPrice: boolean;
+  askModule: boolean;
   totalScans: number;
 }
 
@@ -54,6 +57,7 @@ export interface JoinResult {
   askInternalCode: boolean;
   askProductName: boolean;
   askPrice: boolean;
+  askModule: boolean;
   createdAt: string;
   scans: ScanItem[];
 }

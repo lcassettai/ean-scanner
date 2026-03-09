@@ -22,6 +22,7 @@ export class SessionsService {
         askInternalCode: dto.askInternalCode ?? false,
         askProductName: dto.askProductName ?? false,
         askPrice: dto.askPrice ?? false,
+        askModule: dto.askModule ?? false,
         scans: {
           create: this.mergeScans(dto.scans),
         },
@@ -38,6 +39,7 @@ export class SessionsService {
       askInternalCode: session.askInternalCode,
       askProductName: session.askProductName,
       askPrice: session.askPrice,
+      askModule: session.askModule,
       totalScans: session.scans.length,
     };
   }
@@ -63,6 +65,7 @@ export class SessionsService {
             productName:  item.productName  ?? existing.productName,
             price:        item.price        ?? existing.price,
             observations: item.observations ?? existing.observations,
+            module:       item.module       ?? existing.module,
           },
         });
       } else {
@@ -74,6 +77,7 @@ export class SessionsService {
             productName:  item.productName,
             price:        item.price,
             observations: item.observations,
+            module:       item.module,
             sessionId:    session.id,
           },
         });
@@ -108,6 +112,7 @@ export class SessionsService {
       NombreProducto: (s: typeof session.scans[0]) => s.productName  ?? '',
       Precio:         (s: typeof session.scans[0]) => s.price        ?? '',
       Observaciones:  (s: typeof session.scans[0]) => s.observations ?? '',
+      Modulo:         (s: typeof session.scans[0]) => s.module       ?? '',
     };
 
     const fieldMap: Record<string, keyof typeof all> = {
@@ -117,6 +122,7 @@ export class SessionsService {
       productName:   'NombreProducto',
       price:         'Precio',
       observations:  'Observaciones',
+      module:        'Modulo',
     };
 
     const selected: (keyof typeof all)[] = fields && fields.length > 0
@@ -176,6 +182,7 @@ export class SessionsService {
         productName:  dto.productName  !== undefined ? dto.productName  : scan.productName,
         price:        dto.price        !== undefined ? dto.price        : scan.price,
         observations: dto.observations !== undefined ? dto.observations : scan.observations,
+        module:       dto.module       !== undefined ? dto.module       : scan.module,
       },
     });
   }
@@ -201,6 +208,7 @@ export class SessionsService {
         existing.productName   = s.productName   ?? existing.productName;
         existing.price         = s.price         ?? existing.price;
         existing.observations  = s.observations  ?? existing.observations;
+        existing.module        = s.module        ?? existing.module;
       } else {
         map.set(s.ean, { ...s });
       }

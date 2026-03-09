@@ -135,12 +135,22 @@ export class ViewerController {
             </button>
           </div>
         </div>
+        <div class="px-4 py-2 border-b border-gray-100">
+          <input
+            id="filterInput"
+            type="text"
+            oninput="filterScans()"
+            placeholder="Filtrar por EAN, código interno o módulo..."
+            class="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-primary-400 bg-gray-50"
+          />
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead class="bg-primary-50 text-primary-700 text-xs uppercase tracking-wide">
               <tr>
                 <th class="text-left px-4 py-3">Código EAN</th>
                 <th class="text-left px-4 py-3">Cód. Interno</th>
+                <th class="text-left px-4 py-3">Módulo</th>
                 <th class="text-left px-4 py-3">Producto</th>
                 <th class="text-right px-4 py-3">Precio</th>
                 <th class="text-center px-4 py-3">Cantidad</th>
@@ -150,6 +160,7 @@ export class ViewerController {
             </thead>
             <tbody id="scansTable" class="divide-y divide-gray-50"></tbody>
           </table>
+          <p id="noResults" class="hidden text-sm text-gray-400 text-center py-6">Sin resultados para el filtro aplicado.</p>
         </div>
       </div>
     </div>
@@ -217,6 +228,10 @@ export class ViewerController {
           <input type="checkbox" id="csv_observations" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
           <span class="text-sm font-medium text-gray-700">Observaciones</span>
         </label>
+        <label class="flex items-center gap-3 cursor-pointer select-none">
+          <input type="checkbox" id="csv_module" class="w-4 h-4 rounded accent-green-500 cursor-pointer" onchange="updateCsvBtn()"/>
+          <span class="text-sm font-medium text-gray-700">Módulo</span>
+        </label>
       </div>
       <div class="flex gap-3">
         <button onclick="closeCsvModal()" class="flex-1 text-sm py-2.5 border-2 border-gray-200 text-gray-600 hover:border-gray-300 rounded-xl font-semibold transition-colors">
@@ -263,6 +278,10 @@ export class ViewerController {
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Precio</label>
           <input id="editPrice" type="number" step="0.01" min="0" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-400"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Módulo</label>
+          <input id="editModule" type="text" placeholder="Ej: A1, Pasillo 3..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-400"/>
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">Observaciones</label>
@@ -388,13 +407,30 @@ export class ViewerController {
       document.getElementById('scanCount').textContent = data.scans.length + ' ítems';
       document.getElementById('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+      filterScans();
+    }
+
+    function filterScans() {
+      const q = (document.getElementById('filterInput')?.value || '').trim().toLowerCase();
+      const filtered = q
+        ? currentScans.filter(s =>
+            s.ean.includes(q) ||
+            (s.internalCode || '').toLowerCase().includes(q) ||
+            (s.module || '').toLowerCase().includes(q)
+          )
+        : currentScans;
+
+      const noResults = document.getElementById('noResults');
+      noResults.classList.toggle('hidden', filtered.length > 0);
+
       const tbody = document.getElementById('scansTable');
-      tbody.innerHTML = data.scans.map((s, i) => \`
+      tbody.innerHTML = filtered.map((s, i) => \`
         <tr class="\${i % 2 === 0 ? 'bg-white' : 'bg-primary-50/30'}">
           <td class="px-4 py-3 font-mono text-gray-800">\${s.ean}</td>
           <td class="px-4 py-3 text-gray-600">\${s.internalCode || '—'}</td>
+          <td class="px-4 py-3 text-gray-600">\${s.module || '—'}</td>
           <td class="px-4 py-3 text-gray-600">\${s.productName || '—'}</td>
-          <td class="px-4 py-3 text-right text-gray-600">€\${s.price != null ? s.price.toFixed(2) : '—'}</td>
+          <td class="px-4 py-3 text-right text-gray-600">\${s.price != null ? s.price.toFixed(2) : '—'}</td>
           <td class="px-4 py-3 text-center font-semibold text-primary-700">\${s.quantity}</td>
           <td class="px-4 py-3 text-gray-600 max-w-xs">\${s.observations || '—'}</td>
           <td class="px-4 py-3 text-center">
@@ -446,7 +482,7 @@ export class ViewerController {
     }
 
     function openCsvModal() {
-      ['ean','quantity','internalCode','productName','price'].forEach(f => {
+      ['ean','quantity','internalCode','productName','price','observations','module'].forEach(f => {
         document.getElementById('csv_' + f).checked = false;
       });
       updateCsvBtn();
@@ -466,6 +502,7 @@ export class ViewerController {
       document.getElementById('editInternalCode').value = scan.internalCode || '';
       document.getElementById('editProductName').value = scan.productName || '';
       document.getElementById('editPrice').value = scan.price != null ? scan.price : '';
+      document.getElementById('editModule').value = scan.module || '';
       document.getElementById('editObservations').value = scan.observations || '';
       document.getElementById('editError').classList.add('hidden');
       document.getElementById('editModal').classList.remove('hidden');
@@ -496,6 +533,7 @@ export class ViewerController {
             internalCode: document.getElementById('editInternalCode').value.trim() || null,
             productName: document.getElementById('editProductName').value.trim() || null,
             price: priceVal !== '' ? parseFloat(priceVal) : null,
+            module: document.getElementById('editModule').value.trim() || null,
             observations: document.getElementById('editObservations').value.trim() || null,
           }),
         });
@@ -538,7 +576,7 @@ export class ViewerController {
     }
 
     function updateCsvBtn() {
-      const fields = ['ean','quantity','internalCode','productName','price','observations']
+      const fields = ['ean','quantity','internalCode','productName','price','observations','module']
         .filter(f => document.getElementById('csv_' + f).checked);
       const btn = document.getElementById('csvDownloadBtn');
       if (fields.length === 0) {

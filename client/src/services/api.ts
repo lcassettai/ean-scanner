@@ -6,7 +6,7 @@ export async function createSession(
   name: string,
   type: string,
   scans: ScanItem[],
-  flags?: { askQuantity?: boolean; askInternalCode?: boolean; askProductName?: boolean; askPrice?: boolean },
+  flags?: { askQuantity?: boolean; askInternalCode?: boolean; askProductName?: boolean; askPrice?: boolean; askModule?: boolean },
 ): Promise<SyncResult> {
   const res = await fetch(`${BASE}/sessions`, {
     method: 'POST',
@@ -34,7 +34,7 @@ export async function updateScan(
   shortCode: string,
   accessCode: string,
   ean: string,
-  fields: { quantity?: number; internalCode?: string | null; productName?: string | null; price?: number | null; observations?: string | null },
+  fields: { quantity?: number; internalCode?: string | null; productName?: string | null; price?: number | null; observations?: string | null; module?: string | null },
 ): Promise<void> {
   const res = await fetch(`${BASE}/sessions/${shortCode}/scans`, {
     method: 'PATCH',
